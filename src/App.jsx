@@ -1,608 +1,1433 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
-  LayoutDashboard, Users, Calendar, ClipboardList, BarChart3,
-  Plus, Search, CheckCircle2, AlertTriangle, Trash2, Edit3,
-  Archive, RotateCcw, Download, Upload, Shield, MapPin,
-  Bell, Clock, BookOpen, Phone, UserPlus, Sparkles, Check, X, Copy
+  Users, Calendar, BarChart3, ShieldCheck, UserPlus, ClipboardList,
+  MapPin, Lock, Unlock, Plus, Trash2, Archive, RotateCcw, Search,
+  Edit3, Check, X, Eye, EyeOff, TrendingUp, BookOpen, Bell,
+  Download, Phone, Home, HeartHandshake, ChevronRight, Award,
+  Sparkles, Filter, CheckCircle2, AlertCircle
 } from 'lucide-react';
 
-// --- INITIAL NORMALIZED DATA FROM DLBC POLAND WORKBOOKS ---
-const INITIAL_WORKERS = [
-  { id: 'w1', title: 'Pastor', fullName: 'Pastor Dare', aliases: ['Bro Dare'], phone: '+48 500 100 001', location: 'Warsaw', role: 'super_admin', units: ['Pastoral', 'Bible Study', 'Vigils'], status: 'Active' },
-  { id: 'w2', title: 'Pastor', fullName: 'Pastor William', aliases: ['Pastor Willam', 'Pastor Wiliam', 'Pastor Willaims', 'Pastor Williams', 'Pst. William', 'Bro William'], phone: '+48 500 100 002', location: 'Gliwice', role: 'location_admin', units: ['Pastoral', 'STS', 'Bible Study'], status: 'Active' },
-  { id: 'w3', title: 'Pastor', fullName: 'Pastor Nuhu', aliases: [], phone: '+48 500 100 003', location: 'Warsaw', role: 'location_admin', units: ['Pastoral'], status: 'Active' },
-  { id: 'w4', title: 'Pastor', fullName: 'Pastor Jide', aliases: ['Bro Jide'], phone: '+48 500 100 004', location: 'Warsaw', role: 'location_admin', units: ['Message', 'Bible Study'], status: 'Active' },
-  { id: 'w5', title: 'Mummy', fullName: 'Mummy IBK', aliases: ['Sister Ibukun'], phone: '+48 500 100 005', location: 'Warsaw', role: 'member_readonly', units: ['Welfare', 'STS'], status: 'Active' },
-  { id: 'w6', title: 'Bro', fullName: 'Bro Pelumi', aliases: ['Brother Pelumi'], phone: '+48 500 100 006', location: 'Warsaw', role: 'usher_entry', units: ['STS', 'Moderation', 'Vigils'], status: 'Active' },
-  { id: 'w7', title: 'Bro', fullName: 'Bro Matthew', aliases: ['Bro Mathew', 'Brother Matthew'], phone: '+48 500 100 007', location: 'Warsaw', role: 'usher_entry', units: ['Prayers', 'Bible Study'], status: 'Active' },
-  { id: 'w8', title: 'Bro', fullName: 'Bro Tobi', aliases: ['Bro David Tobi', 'Bro Tobi David', 'Bro David', 'Brother David'], phone: '+48 500 100 008', location: 'Gliwice', role: 'usher_entry', units: ['Moderation', 'Prayers'], status: 'Active' },
-  { id: 'w9', title: 'Bro', fullName: 'Bro Joel', aliases: [], phone: '+48 500 100 009', location: 'Warsaw', role: 'usher_entry', units: ['Moderation', 'Prayers'], status: 'Active' },
-  { id: 'w10', title: 'Bro', fullName: 'Bro Samuel', aliases: [], phone: '+48 500 100 010', location: 'Gliwice', role: 'member_readonly', units: ['Prayers', 'Moderation'], status: 'Active' },
-  { id: 'w11', title: 'Bro', fullName: 'Bro Semilore', aliases: ['Bro Smilore'], phone: '+48 500 100 011', location: 'Warsaw', role: 'member_readonly', units: ['Prayers'], status: 'Active' },
-  { id: 'w12', title: 'Bro', fullName: 'Bro Ebenezer', aliases: [], phone: '+48 500 100 012', location: 'Gliwice', role: 'member_readonly', units: ['Fellowship'], status: 'Active' },
-  { id: 'w13', title: 'Bro', fullName: 'Bro Olamide', aliases: [], phone: '+48 500 100 013', location: 'Warsaw', role: 'member_readonly', units: ['Moderation'], status: 'Active' },
-  { id: 'w14', title: 'Bro', fullName: 'Bro Eron', aliases: [], phone: '+48 500 100 014', location: 'Gliwice', role: 'member_readonly', units: ['Fellowship'], status: 'Active' },
-  { id: 'w15', title: 'Bro', fullName: 'Bro Yinka', aliases: [], phone: '+48 500 100 015', location: 'Warsaw', role: 'member_readonly', units: ['General'], status: 'Active' },
-  { id: 'w16', title: 'Bro', fullName: 'Bro Femi', aliases: [], phone: '+48 500 100 016', location: 'Warsaw', role: 'member_readonly', units: ['General'], status: 'Active' },
-  { id: 'w17', title: 'Sis', fullName: 'Sis Abigail', aliases: ['Sis Abigial', 'Sister Abigail'], phone: '+48 500 100 017', location: 'Gliwice', role: 'member_readonly', units: ['Choir', 'Moderation', 'Vigils'], status: 'Active' },
-  { id: 'w18', title: 'Sis', fullName: 'Sis Bisola', aliases: ['Sis Abisola', 'Sister Bisola'], phone: '+48 500 100 018', location: 'Warsaw', role: 'usher_entry', units: ['Prayers', 'Moderation', 'Choir'], status: 'Active' },
-  { id: 'w19', title: 'Sis', fullName: 'Sis Peace', aliases: ['Sis  Peace', 'Sister Peace'], phone: '+48 500 100 019', location: 'Warsaw', role: 'member_readonly', units: ['Prayers', 'Bible Study'], status: 'Active' },
-  { id: 'w20', title: 'Sis', fullName: 'Sis Elizabeth', aliases: ['Sister Elizabeth'], phone: '+48 500 100 020', location: 'Warsaw', role: 'member_readonly', units: ['STS', 'Bible Study', 'Vigils'], status: 'Active' },
-  { id: 'w21', title: 'Sis', fullName: 'Sis Jane', aliases: ['Sister Jane', 'Sister Janefrancis'], phone: '+48 500 100 021', location: 'Gliwice', role: 'member_readonly', units: ['STS', 'Prayers', 'Vigils'], status: 'Active' },
-  { id: 'w22', title: 'Sis', fullName: 'Sis Victoria', aliases: ['Sister Victoria'], phone: '+48 500 100 022', location: 'Gliwice', role: 'member_readonly', units: ['STS', 'Prayers'], status: 'Active' },
-  { id: 'w23', title: 'Sis', fullName: 'Sis Juliet', aliases: [], phone: '+48 500 100 023', location: 'Warsaw', role: 'member_readonly', units: ['Prayers', 'Fellowship'], status: 'Active' },
-  { id: 'w24', title: 'Sis', fullName: 'Sis Tosin', aliases: [], phone: '+48 500 100 024', location: 'Warsaw', role: 'member_readonly', units: ['Prayers', 'Vigils'], status: 'Active' },
-  { id: 'w25', title: 'Sis', fullName: 'Sis Bimpe', aliases: [], phone: '+48 500 100 025', location: 'Gliwice', role: 'member_readonly', units: ['Prayers', 'Fellowship'], status: 'Active' },
-  { id: 'w26', title: 'Sis', fullName: 'Sister Esther', aliases: [], phone: '+48 500 100 026', location: 'Warsaw', role: 'member_readonly', units: ['Prayers', 'Bible Study'], status: 'Active' }
+// ============================================================================
+// INITIAL DATA & CHURCH RECORDS (DLBC POLAND: WARSAW, WROCLAW, POZNAN, KRAKOW)
+// ============================================================================
+const INITIAL_PEOPLE = [
+  // WORKERS
+  { id: 'p1', category: 'Worker', title: 'Pastor', fullName: 'Pastor Dare', phone: '+48 500 100 001', address: 'ul. Puławska 42/12, Warsaw', emergencyName: 'Sister Grace Dare', emergencyPhone: '+48 500 100 091', location: 'Warsaw', accessRole: 'head_pastor', units: ['Pastoral', 'Preaching', 'Leadership'], joinDate: '2021-03-10', status: 'Active' },
+  { id: 'p2', category: 'Worker', title: 'Pastor', fullName: 'Pastor William', phone: '+48 500 100 002', address: 'ul. Świdnicka 18/4, Wrocław', emergencyName: 'Sister Ruth William', emergencyPhone: '+48 500 100 092', location: 'Wrocław', accessRole: 'full_access', units: ['National Oversight', 'Preaching'], joinDate: '2019-06-01', status: 'Active' },
+  { id: 'p3', category: 'Worker', title: 'Bro', fullName: 'Bro David', phone: '+48 500 100 003', address: 'ul. Marszałkowska 88/7, Warsaw', emergencyName: 'Bro Samuel', emergencyPhone: '+48 500 100 005', location: 'Warsaw', accessRole: 'usher_entry', units: ['STS', 'Moderation', 'Choir'], joinDate: '2022-01-15', status: 'Active' },
+  { id: 'p4', category: 'Worker', title: 'Sister', fullName: 'Sister Esther', phone: '+48 500 100 004', address: 'ul. Mokotowska 19/3, Warsaw', emergencyName: 'Sister Deborah', emergencyPhone: '+48 500 100 008', location: 'Warsaw', accessRole: 'member', units: ['Choir', 'Follow-up', 'Children'], joinDate: '2022-05-20', status: 'Active' },
+  { id: 'p5', category: 'Worker', title: 'Bro', fullName: 'Bro Samuel', phone: '+48 500 100 005', address: 'ul. Grójecka 65/11, Warsaw', emergencyName: 'Bro David', emergencyPhone: '+48 500 100 003', location: 'Warsaw', accessRole: 'member', units: ['Media / Technical', 'Vigils'], joinDate: '2022-09-12', status: 'Active' },
+  { id: 'p6', category: 'Worker', title: 'Bro', fullName: 'Bro Pelumi', phone: '+48 500 100 006', address: 'ul. Targowa 33/9, Warsaw', emergencyName: 'Bro Emmanuel', emergencyPhone: '+48 500 100 010', location: 'Warsaw', accessRole: 'usher_entry', units: ['Ushering', 'Data Entry', 'STS', 'Moderation'], joinDate: '2023-02-14', status: 'Active' },
+  { id: 'p7', category: 'Worker', title: 'Bro', fullName: 'Bro Caleb', phone: '+48 500 100 007', address: 'ul. Półwiejska 24/6, Poznań', emergencyName: 'Sister Hannah', emergencyPhone: '+48 500 100 014', location: 'Poznań', accessRole: 'usher_entry', units: ['Location Lead', 'STS', 'Evangelism'], joinDate: '2023-04-02', status: 'Active' },
+  { id: 'p8', category: 'Worker', title: 'Sister', fullName: 'Sister Deborah', phone: '+48 500 100 008', address: 'ul. Floriańska 15/2, Kraków', emergencyName: 'Sister Esther', emergencyPhone: '+48 500 100 004', location: 'Kraków', accessRole: 'usher_entry', units: ['Location Lead', 'Choir', 'Follow-up'], joinDate: '2023-06-18', status: 'Active' },
+  { id: 'p9', category: 'Worker', title: 'Bro', fullName: 'Bro Joshua', phone: '+48 500 100 009', address: 'ul. Legnicka 50/8, Wrocław', emergencyName: 'Pastor William', emergencyPhone: '+48 500 100 002', location: 'Wrocław', accessRole: 'member', units: ['Ushering', 'Media / Technical'], joinDate: '2023-08-11', status: 'Active' },
+  { id: 'p10', category: 'Worker', title: 'Bro', fullName: 'Bro Emmanuel', phone: '+48 500 100 010', address: 'ul. Jana Pawła II 29/14, Warsaw', emergencyName: 'Bro Pelumi', emergencyPhone: '+48 500 100 006', location: 'Warsaw', accessRole: 'member', units: ['Prayer Band', 'Vigils', 'Evangelism'], joinDate: '2023-10-05', status: 'Active' },
+  // MEMBERS (SEPARATE DIRECTORY CATEGORY)
+  { id: 'm1', category: 'Member', title: 'Bro', fullName: 'Bro Daniel Okafor', phone: '+48 501 200 101', address: 'ul. Wilcza 14/5, Warsaw', emergencyName: 'Sister Mary Okafor', emergencyPhone: '+48 501 200 102', location: 'Warsaw', accessRole: 'member', units: ['General Congregation'], joinDate: '2024-03-17', status: 'Active' },
+  { id: 'm2', category: 'Member', title: 'Sister', fullName: 'Sister Mary Okafor', phone: '+48 501 200 102', address: 'ul. Wilcza 14/5, Warsaw', emergencyName: 'Bro Daniel Okafor', emergencyPhone: '+48 501 200 101', location: 'Warsaw', accessRole: 'member', units: ['Women Fellowship'], joinDate: '2024-03-17', status: 'Active' },
+  { id: 'm3', category: 'Member', title: 'Bro', fullName: 'Bro Piotr Kowalski', phone: '+48 501 200 103', address: 'ul. Karmelicka 9/3, Kraków', emergencyName: 'Anna Kowalska', emergencyPhone: '+48 501 200 199', location: 'Kraków', accessRole: 'member', units: ['Youth / Campus'], joinDate: '2024-09-08', status: 'Active' },
+  { id: 'm4', category: 'Member', title: 'Sister', fullName: 'Sister Abigail Mensah', phone: '+48 501 200 104', address: 'ul. Głogowska 72/4, Poznań', emergencyName: 'Kwame Mensah', emergencyPhone: '+48 501 200 198', location: 'Poznań', accessRole: 'member', units: ['Youth / Campus'], joinDate: '2025-01-19', status: 'Active' },
+  { id: 'm5', category: 'Member', title: 'Bro', fullName: 'Bro Gideon Balogun', phone: '+48 501 200 105', address: 'ul. Oławska 11/6, Wrocław', emergencyName: 'Tunde Balogun', emergencyPhone: '+48 501 200 197', location: 'Wrocław', accessRole: 'member', units: ['Men Fellowship'], joinDate: '2025-04-13', status: 'Active' },
+  { id: 'm6', category: 'Member', title: 'Sister', fullName: 'Sister Faith Adeyemi', phone: '+48 501 200 106', address: 'ul. Solec 44/10, Warsaw', emergencyName: 'Sister Esther', emergencyPhone: '+48 500 100 004', location: 'Warsaw', accessRole: 'member', units: ['General Congregation'], joinDate: '2025-08-24', status: 'Active' }
 ];
 
 const INITIAL_ATTENDANCE = [
-  { id: 'a1', date: '2026-10-18', serviceType: 'Sunday Morning Worship', location: 'Combined', session: 'Full Service', status: 'Held', counts: { Male: 16, Female: 9, Youth: 4, Boys: 2, Girls: 3, Children: 5, Visitors: 2 }, notes: 'Regular Sunday Service' },
-  { id: 'a2', date: '2026-10-11', serviceType: 'Sunday Morning Worship', location: 'Combined', session: 'Full Service', status: 'Held', counts: { Male: 15, Female: 10, Youth: 4, Boys: 3, Girls: 2, Children: 5, Visitors: 0 }, notes: '' },
-  { id: 'a3', date: '2026-10-04', serviceType: 'Sunday Morning Worship', location: 'Combined', session: 'Full Service', status: 'Held', counts: { Male: 17, Female: 10, Youth: 5, Boys: 2, Girls: 3, Children: 5, Visitors: 3 }, notes: 'First Sunday Thanksgiving' },
-  { id: 'a4', date: '2026-04-04', serviceType: 'Easter Retreat 2026', location: 'Combined', session: 'Morning Session', status: 'Held', counts: { Male: 11, Female: 8, Youth: 4, Boys: 4, Girls: 4, Children: 8, Visitors: 1 }, notes: 'Day 2 Morning' },
-  { id: 'a5', date: '2026-03-22', serviceType: 'Sunday Morning Worship', location: 'Combined', session: 'Full Service', status: 'Held', counts: { Male: 20, Female: 14, Youth: 6, Boys: 3, Girls: 3, Children: 6, Visitors: 4 }, notes: 'LIFTED Sunday Special' },
-  { id: 'a6', date: '2026-02-21', serviceType: 'LIFTED 2026 Special Program', location: 'Warsaw', session: 'Evening Session', status: 'Held', counts: { Male: 20, Female: 13, Youth: 7, Boys: 3, Girls: 3, Children: 6, Visitors: 8 }, notes: 'LIFTED Day 1 Evening' }
+  // Historical Multi-Year & Service Comparison Data (Sunday vs Koinonia vs Bible Study vs Revival)
+  { id: 'a1', date: '2023-10-15', period: '2023 H2', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 14, youths: 3, children: 2, visitors: 1, offeringPln: 420, recordedBy: 'Pastor Dare' },
+  { id: 'a2', date: '2023-10-18', period: '2023 H2', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 9, youths: 2, children: 0, visitors: 0, offeringPln: 0, recordedBy: 'Bro David' },
+  { id: 'a3', date: '2024-04-14', period: '2024 H1', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 13, youths: 2, children: 2, visitors: 1, offeringPln: 390, recordedBy: 'Bro Pelumi' },
+  { id: 'a4', date: '2024-04-17', period: '2024 H1', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 8, youths: 2, children: 0, visitors: 0, offeringPln: 0, recordedBy: 'Bro Pelumi' },
+  { id: 'a5', date: '2024-10-20', period: '2024 H2', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 14, youths: 3, children: 1, visitors: 2, offeringPln: 460, recordedBy: 'Bro Pelumi' },
+  { id: 'a6', date: '2024-10-23', period: '2024 H2', location: 'Warsaw', serviceType: 'Bible Study', adults: 10, youths: 2, children: 0, visitors: 0, offeringPln: 120, recordedBy: 'Bro David' },
+  { id: 'a7', date: '2025-04-13', period: '2025 H1', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 17, youths: 3, children: 2, visitors: 2, offeringPln: 580, recordedBy: 'Bro Pelumi' },
+  { id: 'a8', date: '2025-04-16', period: '2025 H1', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 12, youths: 3, children: 0, visitors: 1, offeringPln: 0, recordedBy: 'Bro Pelumi' },
+  { id: 'a9', date: '2025-10-19', period: '2025 H2', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 19, youths: 4, children: 3, visitors: 2, offeringPln: 690, recordedBy: 'Bro Pelumi' },
+  { id: 'a10', date: '2025-10-22', period: '2025 H2', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 14, youths: 3, children: 0, visitors: 1, offeringPln: 0, recordedBy: 'Bro Pelumi' },
+  { id: 'a11', date: '2026-10-04', period: '2026 Q4', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 21, youths: 4, children: 3, visitors: 3, offeringPln: 780, recordedBy: 'Bro Pelumi' },
+  { id: 'a12', date: '2026-10-07', period: '2026 Q4', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 16, youths: 3, children: 0, visitors: 2, offeringPln: 0, recordedBy: 'Bro Pelumi' },
+  { id: 'a13', date: '2026-10-08', period: '2026 Q4', location: 'Warsaw', serviceType: 'Bible Study', adults: 15, youths: 3, children: 0, visitors: 1, offeringPln: 210, recordedBy: 'Bro David' },
+  { id: 'a14', date: '2026-10-09', period: '2026 Q4', location: 'Warsaw', serviceType: 'Revival / Evangelism', adults: 14, youths: 4, children: 0, visitors: 2, offeringPln: 190, recordedBy: 'Bro Pelumi' },
+  { id: 'a15', date: '2026-11-01', period: '2026 Q4', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 22, youths: 5, children: 3, visitors: 2, offeringPln: 840, recordedBy: 'Bro Pelumi' },
+  { id: 'a16', date: '2026-11-04', period: '2026 Q4', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 18, youths: 4, children: 0, visitors: 2, offeringPln: 0, recordedBy: 'Bro Pelumi' },
+  { id: 'a17', date: '2026-11-08', period: '2026 Q4', location: 'Wrocław', serviceType: 'Sunday Worship', adults: 11, youths: 3, children: 1, visitors: 1, offeringPln: 410, recordedBy: 'Bro Joshua' },
+  { id: 'a18', date: '2026-11-11', period: '2026 Q4', location: 'Wrocław', serviceType: 'Koinonia / Home Caring', adults: 8, youths: 2, children: 0, visitors: 0, offeringPln: 0, recordedBy: 'Bro Joshua' },
+  { id: 'a19', date: '2026-11-15', period: '2026 Q4', location: 'Poznań', serviceType: 'Sunday Worship', adults: 9, youths: 4, children: 0, visitors: 2, offeringPln: 340, recordedBy: 'Bro Caleb' },
+  { id: 'a20', date: '2026-11-22', period: '2026 Q4', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 23, youths: 5, children: 3, visitors: 3, offeringPln: 910, recordedBy: 'Bro Pelumi' },
+  { id: 'a21', date: '2026-11-25', period: '2026 Q4', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 19, youths: 4, children: 0, visitors: 2, offeringPln: 0, recordedBy: 'Bro Pelumi' }
 ];
 
-const INITIAL_VISITORS = [
-  { id: 'v1', name: 'Cephas', phone: '+2348107050319', program: 'LIFTED 2026', location: 'Online', invitedBy: 'Bro Pelumi', status: 'Contacted' },
-  { id: 'v2', name: 'Chinaza', phone: '+2349035908199', program: 'LIFTED 2026', location: 'Online', invitedBy: 'Sis Peace', status: 'New' },
-  { id: 'v3', name: 'Promise', phone: '+2348176080438', program: 'LIFTED 2026', location: 'Online', invitedBy: 'Pastor Dare', status: 'Contacted' },
-  { id: 'v4', name: 'Agnieszka', phone: '+48667931174', program: 'LIFTED 2026', location: 'Warsaw', invitedBy: 'Sis Bisola', status: 'Integrated' },
-  { id: 'v5', name: 'Dawid', phone: '+48731041335', program: 'LIFTED 2026', location: 'Warsaw', invitedBy: 'Bro Matthew', status: 'Contacted' }
+const INITIAL_NEWCOMERS = [
+  { id: 'nc1', fullName: 'Chinedu Eze', phone: '+48 512 334 101', location: 'Warsaw', visitDate: '2026-11-22', invitedBy: 'Bro Pelumi', assignedFollowUp: 'Sister Esther', status: 'First-Timer', notes: 'Student at Warsaw Univ of Technology', archived: false },
+  { id: 'nc2', fullName: 'Katarzyna Nowak', phone: '+48 512 334 102', location: 'Warsaw', visitDate: '2026-11-15', invitedBy: 'Bro David', assignedFollowUp: 'Sister Esther', status: 'Second Visit', notes: 'Interested in Koinonia fellowship near Mokotów', archived: false },
+  { id: 'nc3', fullName: 'Michael Mensah', phone: '+48 512 334 103', location: 'Poznań', visitDate: '2026-11-08', invitedBy: 'Bro Caleb', assignedFollowUp: 'Bro Caleb', status: 'Established', notes: 'Joined campus fellowship', archived: false },
+  { id: 'nc4', fullName: 'Oluwaseun Taiwo', phone: '+48 512 334 104', location: 'Warsaw', visitDate: '2026-10-18', invitedBy: 'Bro Emmanuel', assignedFollowUp: 'Bro Emmanuel', status: 'Second Visit', notes: 'Works in Wilanów, prefers evening calls', archived: false },
+  { id: 'nc5', fullName: 'Grace Boateng', phone: '+48 512 334 105', location: 'Wrocław', visitDate: '2026-10-04', invitedBy: 'Bro Joshua', assignedFollowUp: 'Pastor William', status: 'First-Timer', notes: 'Visited during October Sunday service', archived: false },
+  { id: 'nc6', fullName: 'Samuel Adjei', phone: '+48 512 334 106', location: 'Warsaw', visitDate: '2026-07-12', invitedBy: 'Pastor Dare', assignedFollowUp: 'Bro David', status: 'Established', notes: 'Summer outreach convert — archived after Q3 follow-up', archived: true }
 ];
 
-const SERVICE_TEMPLATES = {
-  'Sunday Morning (9:45–12:00)': [
-    { slot: 'Pre-Service Prayers', time: '09:45–10:00' },
-    { slot: 'GHS 1 (Hymns)', time: '10:00–10:10' },
-    { slot: 'Search The Scripture (STS)', time: '10:10–10:35' },
-    { slot: 'STS Summary', time: '10:35–10:45' },
-    { slot: 'Moderation & Announcements', time: '10:45–10:55' },
-    { slot: 'Bible Reading', time: '10:55–11:00' },
-    { slot: 'Worship & Choir Ministration', time: '11:00–11:15' },
-    { slot: 'Sermon / Message', time: '11:15–12:00' }
-  ],
-  'Sunday Evening Fellowship (7:00–8:00)': [
-    { slot: 'Opening Prayers & Worship', time: '19:00–19:10' },
-    { slot: 'Testimonies & Intercession', time: '19:10–19:25' },
-    { slot: 'Interactive Discussion', time: '19:25–19:45' },
-    { slot: 'Summary & Closing Prayers', time: '19:45–20:00' }
-  ],
-  'Tuesday Bible Study (7:30–8:30)': [
-    { slot: 'Opening Prayers & Worship', time: '19:30–19:35' },
-    { slot: 'Bible Study Summary', time: '19:35–20:00' },
-    { slot: 'Questions & Discussion', time: '20:00–20:15' },
-    { slot: 'Closing Prayers', time: '20:15–20:30' }
-  ],
-  'Saturday Morning Prayer (7:00–8:00)': [
-    { slot: 'Opening Prayers & Worship', time: '07:00–07:10' },
-    { slot: 'Prayer 1: Self (Personal Revival)', time: '07:10–07:20' },
-    { slot: 'Prayer 2: Charge (Spiritual Awakening)', time: '07:20–07:35' },
-    { slot: 'Prayer 3: Church (Vision for Souls)', time: '07:35–07:45' },
-    { slot: 'Testimony & Prayer Requests', time: '07:45–08:00' }
-  ],
-  'Monthly Vigil (10:00 PM–12:00 AM)': [
-    { slot: 'Worship & Praises', time: '22:00–22:30' },
-    { slot: 'Exhortation', time: '22:30–23:00' },
-    { slot: 'Prevailing Prayers', time: '23:00–23:30' },
-    { slot: 'Spiritual Warfare', time: '23:30–00:00' }
-  ]
+const INITIAL_PLANS_AND_NOTICES = {
+  '2025': {
+    theme: '2025: Year of Unshakable Foundation & Koinonia Multiplication',
+    noticeBoard: [
+      { id: 'n25-1', title: '2025 Year-End Thanksgiving Archive', date: '2025-12-14', audience: 'All Locations', priority: 'Normal', body: 'All four Polish locations gathered for combined Thanksgiving and annual review.' }
+    ],
+    goals: [
+      { id: 'g25-1', quarter: 'Q1–Q2 2025', title: 'Establish Weekly Koinonia Centers in Warsaw', target: '2 Active Centers', progress: 100, status: 'Completed' },
+      { id: 'g25-2', quarter: 'Q3–Q4 2025', title: 'Grow Sunday Attendance Above 22 Avg', target: '23.6 Achieved', progress: 100, status: 'Completed' }
+    ]
+  },
+  '2026': {
+    theme: '2026: Year of Open Doors, Sound Doctrine & Harvest Across Poland',
+    noticeBoard: [
+      { id: 'n26-1', title: 'December National Retreat & Crossover Vigil', date: '2026-12-26', audience: 'All Poland Locations', priority: 'Urgent', body: 'Combined Poland Retreat runs Dec 26–29. Location coordinators should submit travel headcount by Dec 10.' },
+      { id: 'n26-2', title: 'Weekly Koinonia House Fellowship Expansion', date: '2026-11-28', audience: 'Warsaw, Wrocław, Poznań, Kraków', priority: 'Normal', body: 'Every member is encouraged to host or attend midweek Koinonia fellowship in their district.' }
+    ],
+    goals: [
+      { id: 'g26-1', quarter: 'Q1–Q2 2026', title: 'Launch Structured Newcomer Follow-Up Pipeline', target: '100% 48-hr Contact', progress: 100, status: 'Completed' },
+      { id: 'g26-2', quarter: 'Q3 2026', title: 'Koinonia Attendance Ratio >= 75% of Sunday', target: '82% Achieved', progress: 100, status: 'Completed' },
+      { id: 'g26-3', quarter: 'Q4 2026', title: 'Reach 30+ Sunday Worship Attendance in Warsaw', target: '31 Recorded Nov 22', progress: 95, status: 'In Progress' }
+    ]
+  },
+  '2027': {
+    theme: '2027: Year of Deeper Roots & City-Wide Evangelism',
+    noticeBoard: [
+      { id: 'n27-1', title: '2027 Q1 Workers & Leaders Strategic Planning', date: '2027-01-09', audience: 'All Workers', priority: 'Normal', body: 'Annual workers alignment and roster commissioning across all Polish cities.' }
+    ],
+    goals: [
+      { id: 'g27-1', quarter: 'Q1 2027', title: 'Open Gdańsk / Tri-City Outreach Cell', target: '10 Core Members', progress: 15, status: 'Planned' },
+      { id: 'g27-2', quarter: 'Q2 2027', title: 'Train 12 New Workers Across Locations', target: '12 Certified Workers', progress: 10, status: 'Planned' }
+    ]
+  }
 };
 
 const INITIAL_ROSTERS = [
   {
     id: 'r1',
     date: '2026-11-29',
-    serviceType: 'Sunday Morning (9:45–12:00)',
-    location: 'Combined',
-    theme: 'Preach The Word, Brighten Your Corner! (Acts 8:4)',
+    location: 'Warsaw',
+    serviceType: 'Sunday Worship Service',
     assignments: [
-      { slot: 'Pre-Service Prayers', time: '09:45–10:00', worker: 'Bro Tobi' },
-      { slot: 'GHS 1 (Hymns)', time: '10:00–10:10', worker: 'Pastor William' },
-      { slot: 'Search The Scripture (STS)', time: '10:10–10:35', worker: 'Mummy IBK' },
-      { slot: 'STS Summary', time: '10:35–10:45', worker: 'Pastor William' },
-      { slot: 'Moderation & Announcements', time: '10:45–10:55', worker: 'Bro Samuel' },
-      { slot: 'Bible Reading', time: '10:55–11:00', worker: 'Sis Abigail' },
-      { slot: 'Worship & Choir Ministration', time: '11:00–11:15', worker: 'Sis Bisola' },
-      { slot: 'Sermon / Message', time: '11:15–12:00', worker: 'Pastor Dare' }
+      { time: '09:30', slot: 'Opening Prayer & Moderation', worker: 'Bro David' },
+      { time: '09:45', slot: 'Search The Scriptures (STS)', worker: 'Bro Pelumi' },
+      { time: '10:30', slot: 'Choir Ministration', worker: 'Sister Esther' },
+      { time: '10:50', slot: 'Sermon / Word Ministration', worker: 'Pastor Dare' },
+      { time: '11:45', slot: 'Ushering & Newcomer Welcome', worker: 'Bro Emmanuel' }
     ]
   },
   {
     id: 'r2',
-    date: '2026-11-29',
-    serviceType: 'Sunday Evening Fellowship (7:00–8:00)',
+    date: '2026-12-02',
     location: 'Warsaw',
-    theme: 'Managing Healthy Lifestyle & Living During Winter',
+    serviceType: 'Midweek Koinonia & Prayer',
     assignments: [
-      { slot: 'Opening Prayers & Worship', time: '19:00–19:10', worker: 'Sis Juliet' },
-      { slot: 'Testimonies & Intercession', time: '19:10–19:25', worker: 'Bro Semilore' },
-      { slot: 'Interactive Discussion', time: '19:25–19:45', worker: 'Bro Pelumi' },
-      { slot: 'Summary & Closing Prayers', time: '19:45–20:00', worker: 'Sis Bisola' }
-    ]
-  },
-  {
-    id: 'r3',
-    date: '2026-11-29',
-    serviceType: 'Sunday Evening Fellowship (7:00–8:00)',
-    location: 'Gliwice',
-    theme: 'Managing Healthy Lifestyle & Living During Winter',
-    assignments: [
-      { slot: 'Opening Prayers & Worship', time: '19:00–19:10', worker: 'Sis Jane' },
-      { slot: 'Testimonies & Intercession', time: '19:10–19:25', worker: 'Bro Ebenezer' },
-      { slot: 'Interactive Discussion', time: '19:25–19:45', worker: 'Sis Victoria' },
-      { slot: 'Summary & Closing Prayers', time: '19:45–20:00', worker: 'Pastor William' }
-    ]
-  },
-  {
-    id: 'r4',
-    date: '2026-12-01',
-    serviceType: 'Tuesday Bible Study (7:30–8:30)',
-    location: 'Online',
-    theme: 'Systematic Expository Study',
-    assignments: [
-      { slot: 'Opening Prayers & Worship', time: '19:30–19:35', worker: 'Sis Peace' },
-      { slot: 'Bible Study Summary', time: '19:35–20:00', worker: 'Pastor William' },
-      { slot: 'Questions & Discussion', time: '20:00–20:15', worker: 'Pastor William' },
-      { slot: 'Closing Prayers', time: '20:15–20:30', worker: 'Pastor Jide' }
+      { time: '18:30', slot: 'Praise & Worship', worker: 'Sister Esther' },
+      { time: '18:50', slot: 'Bible Outline & Discussion', worker: 'Bro Pelumi' },
+      { time: '19:30', slot: 'Intercessory Prayer', worker: 'Bro Emmanuel' }
     ]
   }
 ];
 
-const INITIAL_PLANS = [
-  { id: 'p1', quarter: 'Q1', title: 'Monthly Fasting & Prayers', dateLabel: '1–3 Jan, 5–7 Feb & Mar', isTba: false, leader: 'Pastor Dare', team: ['Pastor William', 'Bro Tobi', 'Sis Peace', 'Bro Joel'], status: 'Completed' },
-  { id: 'p2', quarter: 'Q1', title: 'Special Program: LIFTED 2026', dateLabel: '21 & 22 Mar 2026', isTba: false, leader: 'Pastor Dare', team: ['Pastor William', 'Bro Pelumi', 'Sis Bisola'], status: 'Completed' },
-  { id: 'p3', quarter: 'Q2', title: 'Evangelism Strategy That Works in Your Jerusalem', dateLabel: '21 Jun 2026', isTba: false, leader: 'Pastor William', team: ['Pastor Dare', 'Bro Joel', 'Sis Abigail', 'Sis Elizabeth'], status: 'Completed' },
-  { id: 'p4', quarter: 'Q3', title: 'Skill Development in the Digital World', dateLabel: '19 Sep 2026', isTba: false, leader: 'Pastor Dare', team: ['Bro Pelumi', 'Sis Victoria', 'Bro Matthew'], status: 'Completed' },
-  { id: 'p5', quarter: 'Q4', title: 'Q4 Fasting & Prayers + STS Quiz', dateLabel: '1–3 Oct, 5–7 Nov & 3–5 Dec', isTba: false, leader: 'Sis Elizabeth', team: ['Bro Matthew', 'Sis Abigail', 'Sis Jane', 'Sis Bisola'], status: 'In Progress' },
-  { id: 'p6', quarter: 'Q4', title: 'Combined Service: Warsaw / Gliwice (Variety Night)', dateLabel: '19 & 20 Dec 2026', isTba: false, leader: 'Pastor Dare', team: ['Pastor William', 'Sis Bisola', 'Bro Pelumi', 'Sis Victoria'], status: 'Upcoming' }
-];
-
-const INITIAL_NOTICES = [
-  { id: 'n1', category: 'Within-the-Week Program', location: 'All Locations', title: 'December 3-Day Fasting & Prayers (Dec 3–5)', body: 'Join daily evening prayer convergence on Zoom at 19:30 CET. Fasting breaks at 18:00 CET.', urgent: true, expires: '2026-12-06' },
-  { id: 'n2', category: 'General Church Info', location: 'Warsaw & Gliwice', title: 'Combined Year-End Variety Night (Dec 19–20)', body: 'All choir groups, youth drama teams, and location coordinators should submit presentation slots by Dec 6.', urgent: false, expires: '2026-12-21' }
-];
-
-const ALL_CATEGORIES = ['Male', 'Female', 'Youth', 'Boys', 'Girls', 'Children', 'Visitors'];
+// ============================================================================
+// ACCESS PASSCODES (SPECIAL ENTRY VS PUBLIC URL VIEW)
+// ============================================================================
+// Public URL visitors start in 'public_member' mode (no passcode needed).
+// Entering a Special Access Code unlocks elevated privileges:
+//   - Head Pastor (Pastor Dare):   DLBC-HP2026
+//   - Full Access (Pastor William): DLBC-FA2026
+//   - Usher / Data Entry:           DLBC-UE2026
+const ACCESS_CODES = {
+  'DLBC-HP2026': { role: 'head_pastor', label: 'Head Pastor (Full Admin)' },
+  'DLBC-FA2026': { role: 'full_access', label: 'Senior / Full Access' },
+  'DLBC-UE2026': { role: 'usher_entry', label: 'Usher / Data Entry' }
+};
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [currentUserRole, setCurrentUserRole] = useState('super_admin'); // super_admin | location_admin | usher_entry | member_readonly
+  // User Identity & Access Control State
+  const [viewerName, setViewerName] = useState(() => localStorage.getItem('dlbc_viewer_name') || '');
+  const [accessLevel, setAccessLevel] = useState(() => localStorage.getItem('dlbc_access_level') || 'public_member');
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [passcodeError, setPasscodeError] = useState('');
 
-  // State Stores
-  const [workers, setWorkers] = useState(INITIAL_WORKERS);
-  const [attendance, setAttendance] = useState(INITIAL_ATTENDANCE);
-  const [visitors, setVisitors] = useState(INITIAL_VISITORS);
-  const [rosters, setRosters] = useState(INITIAL_ROSTERS);
-  const [plans, setPlans] = useState(INITIAL_PLANS);
-  const [notices, setNotices] = useState(INITIAL_NOTICES);
+  // Navigation Tabs
+  const [activeTab, setActiveTab] = useState('overview');
 
-  // Toast Notification
-  const [toast, setToast] = useState('');
-  const notify = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3500);
-  };
-
-  // --- ATTENDANCE FORM STATE ---
-  const [attForm, setAttForm] = useState({
-    date: '2026-11-29',
-    serviceType: 'Sunday Morning Worship',
-    location: 'Warsaw',
-    session: 'Full Service',
-    status: 'Held',
-    notes: '',
-    activeCats: ['Male', 'Female', 'Youth', 'Children', 'Visitors'],
-    counts: { Male: 0, Female: 0, Youth: 0, Boys: 0, Girls: 0, Children: 0, Visitors: 0 }
+  // Core Church State (Persisted to LocalStorage)
+  const [people, setPeople] = useState(() => {
+    const saved = localStorage.getItem('dlbc_people_v2');
+    return saved ? JSON.parse(saved) : INITIAL_PEOPLE;
+  });
+  const [attendance, setAttendance] = useState(() => {
+    const saved = localStorage.getItem('dlbc_attendance_v2');
+    return saved ? JSON.parse(saved) : INITIAL_ATTENDANCE;
+  });
+  const [newcomers, setNewcomers] = useState(() => {
+    const saved = localStorage.getItem('dlbc_newcomers_v2');
+    return saved ? JSON.parse(saved) : INITIAL_NEWCOMERS;
+  });
+  const [plansByYear, setPlansByYear] = useState(() => {
+    const saved = localStorage.getItem('dlbc_plans_v2');
+    return saved ? JSON.parse(saved) : INITIAL_PLANS_AND_NOTICES;
+  });
+  const [rosters, setRosters] = useState(() => {
+    const saved = localStorage.getItem('dlbc_rosters_v2');
+    return saved ? JSON.parse(saved) : INITIAL_ROSTERS;
   });
 
-  const [visitorForm, setVisitorForm] = useState({ name: '', phone: '', program: 'Sunday Service', location: 'Warsaw', invitedBy: 'Pastor Dare' });
+  useEffect(() => { localStorage.setItem('dlbc_people_v2', JSON.stringify(people)); }, [people]);
+  useEffect(() => { localStorage.setItem('dlbc_attendance_v2', JSON.stringify(attendance)); }, [attendance]);
+  useEffect(() => { localStorage.setItem('dlbc_newcomers_v2', JSON.stringify(newcomers)); }, [newcomers]);
+  useEffect(() => { localStorage.setItem('dlbc_plans_v2', JSON.stringify(plansByYear)); }, [plansByYear]);
+  useEffect(() => { localStorage.setItem('dlbc_rosters_v2', JSON.stringify(rosters)); }, [rosters]);
 
-  // --- ROSTER BUILDER STATE ---
-  const [selectedRosterId, setSelectedRosterId] = useState(INITIAL_ROSTERS[0].id);
-  const [newRosterMeta, setNewRosterMeta] = useState({
-    date: '2026-12-06',
-    serviceType: 'Sunday Morning (9:45–12:00)',
-    location: 'Combined',
-    theme: 'Preach The Word, Brighten Your Corner!'
-  });
+  // Permission Helpers
+  const isFullAdmin = accessLevel === 'head_pastor' || accessLevel === 'full_access';
+  const isHeadPastor = accessLevel === 'head_pastor';
+  const canEnterData = isFullAdmin || accessLevel === 'usher_entry';
 
-  // --- WORKERS ADMIN STATE ---
-  const [workerSearch, setWorkerSearch] = useState('');
-  const [workerStatusFilter, setWorkerStatusFilter] = useState('All');
-  const [newWorker, setNewWorker] = useState({ title: 'Bro', fullName: '', location: 'Warsaw', role: 'member_readonly', phone: '', units: 'Prayers', aliases: '' });
-  const [editingWorkerId, setEditingWorkerId] = useState(null);
-  const [editWorkerDraft, setEditWorkerDraft] = useState(null);
-  const [bulkPasteOpen, setBulkPasteOpen] = useState(false);
-  const [bulkText, setBulkText] = useState('');
-  const [mergeSourceId, setMergeSourceId] = useState('');
-  const [mergeTargetId, setMergeTargetId] = useState('');
-  const [deleteTargetWorker, setDeleteTargetWorker] = useState(null);
-
-  // --- NOTICEBOARD FORM ---
-  const [noticeForm, setNoticeForm] = useState({ category: 'Within-the-Week Program', location: 'All Locations', title: '', body: '', urgent: true, expires: '2026-12-15' });
-
-  const canEditSchedules = currentUserRole === 'super_admin' || currentUserRole === 'location_admin';
-  const canEnterAttendance = canEditSchedules || currentUserRole === 'usher_entry';
-
-  // Active workers for roster dropdowns
-  const activeWorkersList = useMemo(() => workers.filter(w => w.status === 'Active'), [workers]);
-
-  // Conflict detection across rosters on same date
-  const scheduleConflicts = useMemo(() => {
-    const conflicts = [];
-    rosters.forEach((r1, i) => {
-      rosters.forEach((r2, j) => {
-        if (i < j && r1.date === r2.date && r1.location !== r2.location && r1.location !== 'Online' && r2.location !== 'Online') {
-          const w1 = r1.assignments.map(a => a.worker);
-          const w2 = r2.assignments.map(a => a.worker);
-          w1.forEach(person => {
-            if (person && person !== 'Unassigned' && w2.includes(person)) {
-              conflicts.push(`${person} is scheduled in both ${r1.location} and ${r2.location} on ${r1.date}`);
-            }
-          });
-        }
-      });
-    });
-    return [...new Set(conflicts)];
-  }, [rosters]);
-
-  // Handlers
-  const handleAddAttendance = (e) => {
-    e.preventDefault();
-    const cleanCounts = {};
-    attForm.activeCats.forEach(c => {
-      cleanCounts[c] = attForm.status === 'Held' ? Number(attForm.counts[c] || 0) : 0;
-    });
-    setAttendance([{ id: 'a' + Date.now(), ...attForm, counts: cleanCounts }, ...attendance]);
-    notify('Attendance record saved cleanly.');
+  const handleNameChange = (val) => {
+    setViewerName(val);
+    localStorage.setItem('dlbc_viewer_name', val);
   };
 
-  const handleAddVisitor = (e) => {
+  const handleUnlockSubmit = (e) => {
     e.preventDefault();
-    if (!visitorForm.name.trim()) return;
-    setVisitors([{ id: 'v' + Date.now(), ...visitorForm, status: 'New' }, ...visitors]);
-    setVisitorForm({ ...visitorForm, name: '', phone: '' });
-    notify('First-timer added to follow-up directory.');
-  };
-
-  const handleCreateRoster = (e) => {
-    e.preventDefault();
-    const templateSlots = SERVICE_TEMPLATES[newRosterMeta.serviceType] || [];
-    const created = {
-      id: 'r' + Date.now(),
-      ...newRosterMeta,
-      assignments: templateSlots.map(s => ({ ...s, worker: activeWorkersList[0]?.fullName || 'Unassigned' }))
-    };
-    setRosters([created, ...rosters]);
-    setSelectedRosterId(created.id);
-    notify(`Created ${newRosterMeta.serviceType} schedule.`);
-  };
-
-  const handleUpdateSlotWorker = (rosterId, slotIdx, newName) => {
-    setRosters(rosters.map(r => {
-      if (r.id !== rosterId) return r;
-      const updated = [...r.assignments];
-      updated[slotIdx] = { ...updated[slotIdx], worker: newName };
-      return { ...r, assignments: updated };
-    }));
-  };
-
-  // --- WORKERS ADMIN HANDLERS ---
-  const handleAddWorker = (e) => {
-    e.preventDefault();
-    if (!newWorker.fullName.trim()) return;
-    const formattedName = newWorker.fullName.trim();
-    if (workers.some(w => w.fullName.toLowerCase() === formattedName.toLowerCase())) {
-      notify('Worker already exists in directory.');
-      return;
+    const normalized = passcodeInput.trim().toUpperCase();
+    const match = ACCESS_CODES[normalized];
+    if (match) {
+      setAccessLevel(match.role);
+      localStorage.setItem('dlbc_access_level', match.role);
+      setPasscodeInput('');
+      setPasscodeError('');
+      setShowUnlockModal(false);
+    } else {
+      setPasscodeError('Invalid special entry code. Check with Head Pastor.');
     }
+  };
+
+  const handleLockToPublic = () => {
+    setAccessLevel('public_member');
+    localStorage.setItem('dlbc_access_level', 'public_member');
+    if (activeTab === 'analytics' || activeTab === 'directory') {
+      setActiveTab('overview');
+    }
+  };
+
+  // ==========================================================================
+  // ANALYTICS COMPUTATIONS (GROWTH TREND & SUNDAY VS KOINONIA / OTHER DAYS)
+  // ==========================================================================
+  const [analyticsLocation, setAnalyticsLocation] = useState('All Locations');
+
+  const filteredAttendance = useMemo(() => {
+    return analyticsLocation === 'All Locations'
+      ? attendance
+      : attendance.filter(a => a.location === analyticsLocation);
+  }, [attendance, analyticsLocation]);
+
+  // 1. Multi-Year Growth Trend (Sunday Worship Average by Period)
+  const growthTrendData = useMemo(() => {
+    const periods = ['2023 H2', '2024 H1', '2024 H2', '2025 H1', '2025 H2', '2026 Q4'];
+    return periods.map(p => {
+      const records = filteredAttendance.filter(a => a.period === p && a.serviceType === 'Sunday Worship');
+      if (records.length === 0) return { label: p, avg: 0, count: 0 };
+      const sum = records.reduce((acc, r) => acc + r.adults + r.youths + r.children, 0);
+      return { label: p, avg: +(sum / records.length).toFixed(1), count: records.length };
+    });
+  }, [filteredAttendance]);
+
+  // 2. Service Day Comparison (Sunday Worship vs Koinonia vs Bible Study vs Revival)
+  const serviceComparisonData = useMemo(() => {
+    const types = ['Sunday Worship', 'Koinonia / Home Caring', 'Bible Study', 'Revival / Evangelism'];
+    const sundayRecords = filteredAttendance.filter(a => a.serviceType === 'Sunday Worship');
+    const sundayAvg = sundayRecords.length
+      ? sundayRecords.reduce((s, r) => s + r.adults + r.youths + r.children, 0) / sundayRecords.length
+      : 1;
+
+    return types.map(type => {
+      const recs = filteredAttendance.filter(a => a.serviceType === type);
+      const totalSum = recs.reduce((s, r) => s + r.adults + r.youths + r.children, 0);
+      const avg = recs.length ? +(totalSum / recs.length).toFixed(1) : 0;
+      const retentionPct = sundayAvg > 0 ? Math.round((avg / sundayAvg) * 100) : 0;
+      return { type, avg, sessions: recs.length, retentionPct };
+    });
+  }, [filteredAttendance]);
+
+  const latestSundayAvg = growthTrendData[growthTrendData.length - 1]?.avg || 0;
+  const baselineSundayAvg = growthTrendData[0]?.avg || 1;
+  const overallGrowthPct = Math.round(((latestSundayAvg - baselineSundayAvg) / baselineSundayAvg) * 100);
+
+  // ==========================================================================
+  // NEWCOMERS STATE & FILTERS (MONTH / QUARTER / ARCHIVED)
+  // ==========================================================================
+  const [ncViewMode, setNcViewMode] = useState('month'); // 'month' | 'quarter' | 'archived'
+  const [selectedMonth, setSelectedMonth] = useState('2026-11');
+  const [selectedQuarter, setSelectedQuarter] = useState('2026-Q4');
+  const [ncForm, setNcForm] = useState({ fullName: '', phone: '', location: 'Warsaw', visitDate: '2026-11-26', invitedBy: '', assignedFollowUp: 'Sister Esther', notes: '' });
+
+  const getQuarterString = (dateStr) => {
+    if (!dateStr) return '';
+    const [y, m] = dateStr.split('-');
+    const q = Math.ceil(parseInt(m, 10) / 3);
+    return `${y}-Q${q}`;
+  };
+
+  const visibleNewcomers = useMemo(() => {
+    if (ncViewMode === 'archived') {
+      return newcomers.filter(n => n.archived);
+    }
+    return newcomers.filter(n => {
+      if (n.archived) return false;
+      if (ncViewMode === 'month') return n.visitDate.startsWith(selectedMonth);
+      if (ncViewMode === 'quarter') return getQuarterString(n.visitDate) === selectedQuarter;
+      return true;
+    });
+  }, [newcomers, ncViewMode, selectedMonth, selectedQuarter]);
+
+  const handleAddNewcomer = (e) => {
+    e.preventDefault();
+    if (!ncForm.fullName.trim()) return;
+    const item = {
+      id: 'nc-' + Date.now(),
+      ...ncForm,
+      status: 'First-Timer',
+      archived: false
+    };
+    setNewcomers([item, ...newcomers]);
+    setNcForm({ fullName: '', phone: '', location: 'Warsaw', visitDate: '2026-11-26', invitedBy: '', assignedFollowUp: 'Sister Esther', notes: '' });
+  };
+
+  const toggleArchiveNewcomer = (id) => {
+    setNewcomers(newcomers.map(n => n.id === id ? { ...n, archived: !n.archived } : n));
+  };
+
+  const deleteNewcomer = (id) => {
+    setNewcomers(newcomers.filter(n => n.id !== id));
+  };
+
+  // ==========================================================================
+  // WORKERS & MEMBERS SEPARATE DIRECTORIES + PARTICULARS
+  // ==========================================================================
+  const [directorySubTab, setDirectorySubTab] = useState('Worker'); // 'Worker' | 'Member'
+  const [dirSearch, setDirSearch] = useState('');
+  const [dirLocationFilter, setDirLocationFilter] = useState('All');
+  const [editingPersonId, setEditingPersonId] = useState(null);
+  const [editPersonDraft, setEditPersonDraft] = useState(null);
+  const [newPersonForm, setNewPersonForm] = useState({
+    category: 'Worker',
+    title: 'Bro',
+    fullName: '',
+    phone: '',
+    address: '',
+    emergencyName: '',
+    emergencyPhone: '',
+    location: 'Warsaw',
+    accessRole: 'member',
+    unitsText: ''
+  });
+
+  const filteredDirectory = useMemo(() => {
+    return people.filter(p => {
+      if (p.category !== directorySubTab) return false;
+      if (dirLocationFilter !== 'All' && p.location !== dirLocationFilter) return false;
+      if (dirSearch.trim()) {
+        const q = dirSearch.toLowerCase();
+        return (
+          p.fullName.toLowerCase().includes(q) ||
+          p.phone.toLowerCase().includes(q) ||
+          (p.address && p.address.toLowerCase().includes(q)) ||
+          (p.emergencyName && p.emergencyName.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    });
+  }, [people, directorySubTab, dirLocationFilter, dirSearch]);
+
+  const handleAddPerson = (e) => {
+    e.preventDefault();
+    if (!newPersonForm.fullName.trim()) return;
+    const units = newPersonForm.unitsText
+      ? newPersonForm.unitsText.split(',').map(u => u.trim()).filter(Boolean)
+      : [newPersonForm.category === 'Worker' ? 'General Service' : 'General Congregation'];
     const created = {
-      id: 'w' + Date.now(),
-      title: newWorker.title,
-      fullName: formattedName,
-      location: newWorker.location,
-      role: newWorker.role,
-      phone: newWorker.phone || '+48 500 000 000',
-      units: newWorker.units.split(',').map(u => u.trim()).filter(Boolean),
-      aliases: newWorker.aliases.split(',').map(a => a.trim()).filter(Boolean),
+      id: 'p-' + Date.now(),
+      category: newPersonForm.category,
+      title: newPersonForm.title,
+      fullName: newPersonForm.fullName.trim(),
+      phone: newPersonForm.phone.trim(),
+      address: newPersonForm.address.trim(),
+      emergencyName: newPersonForm.emergencyName.trim(),
+      emergencyPhone: newPersonForm.emergencyPhone.trim(),
+      location: newPersonForm.location,
+      accessRole: newPersonForm.category === 'Worker' ? newPersonForm.accessRole : 'member',
+      units,
+      joinDate: new Date().toISOString().slice(0, 10),
       status: 'Active'
     };
-    setWorkers([created, ...workers]);
-    setNewWorker({ title: 'Bro', fullName: '', location: 'Warsaw', role: 'member_readonly', phone: '', units: 'Prayers', aliases: '' });
-    notify(`Added ${formattedName} to Master Directory.`);
+    setPeople([created, ...people]);
+    setDirectorySubTab(created.category);
+    setNewPersonForm({
+      category: created.category,
+      title: 'Bro',
+      fullName: '',
+      phone: '',
+      address: '',
+      emergencyName: '',
+      emergencyPhone: '',
+      location: 'Warsaw',
+      accessRole: 'member',
+      unitsText: ''
+    });
   };
 
-  const handleBulkPaste = () => {
- const lines = bulkText.split('\n').map(l => l.trim()).filter(Boolean);
-    let addedCount = 0;
-    const nextWorkers = [...workers];
-    lines.forEach((line, idx) => {
-      if (!nextWorkers.some(w => w.fullName.toLowerCase() === line.toLowerCase())) {
-        const title = line.startsWith('Pastor') ? 'Pastor' : line.startsWith('Sis') || line.startsWith('Sister') ? 'Sis' : 'Bro';
-        nextWorkers.push({
-          id: 'wb' + Date.now() + idx,
-          title,
-          fullName: line,
-          aliases: [],
-          phone: '+48 500 000 000',
-          location: 'Warsaw',
-          role: 'member_readonly',
-          units: ['General'],
-          status: 'Active'
-        });
-        addedCount++;
+  const handleToggleCategory = (personId, newCat) => {
+    setPeople(people.map(p => p.id === personId ? {
+      ...p,
+      category: newCat,
+      accessRole: newCat === 'Member' ? 'member' : p.accessRole
+    } : p));
+  };
+
+  const saveEditedPerson = () => {
+    if (!editPersonDraft) return;
+    setPeople(people.map(p => p.id === editPersonDraft.id ? editPersonDraft : p));
+    setEditingPersonId(null);
+    setEditPersonDraft(null);
+  };
+
+  // ==========================================================================
+  // MULTI-YEAR STRATEGIC PLAN & NOTICE BOARD STATE
+  // ==========================================================================
+  const [selectedPlanYear, setSelectedPlanYear] = useState('2026');
+  const [newYearInput, setNewYearInput] = useState('');
+  const [newNoticeForm, setNewNoticeForm] = useState({ title: '', date: '2026-12-01', audience: 'All Locations', priority: 'Normal', body: '' });
+  const [newGoalForm, setNewGoalForm] = useState({ quarter: 'Q1', title: '', target: '', progress: 0, status: 'Planned' });
+
+  const availableYears = Object.keys(plansByYear).sort();
+  const currentYearData = plansByYear[selectedPlanYear] || {
+    theme: `${selectedPlanYear}: Strategic Church Plan & Vision`,
+    noticeBoard: [],
+    goals: []
+  };
+
+  const handleCreateYear = (e) => {
+    e.preventDefault();
+    const yr = newYearInput.trim();
+    if (!yr || !/^\d{4}$/.test(yr)) return;
+    if (!plansByYear[yr]) {
+      setPlansByYear({
+        ...plansByYear,
+        [yr]: {
+          theme: `${yr}: Year of Expansion & Spiritual Establishment across Poland`,
+          noticeBoard: [],
+          goals: []
+        }
+      });
+    }
+    setSelectedPlanYear(yr);
+    setNewYearInput('');
+  };
+
+  const handleUpdateYearTheme = (newTheme) => {
+    setPlansByYear({
+      ...plansByYear,
+      [selectedPlanYear]: { ...currentYearData, theme: newTheme }
+    });
+  };
+
+  const handleAddNotice = (e) => {
+    e.preventDefault();
+    if (!newNoticeForm.title.trim()) return;
+    const notice = { id: 'not-' + Date.now(), ...newNoticeForm };
+    setPlansByYear({
+      ...plansByYear,
+      [selectedPlanYear]: {
+        ...currentYearData,
+        noticeBoard: [notice, ...currentYearData.noticeBoard]
       }
     });
-    setWorkers(nextWorkers);
-    setBulkText('');
-    setBulkPasteOpen(false);
-    notify(`Imported ${addedCount} new worker(s); skipped duplicates.`);
+    setNewNoticeForm({ title: '', date: `${selectedPlanYear}-12-01`, audience: 'All Locations', priority: 'Normal', body: '' });
   };
 
-  const handleSaveWorkerEdit = () => {
-    if (!editWorkerDraft) return;
-    const oldWorker = workers.find(w => w.id === editWorkerDraft.id);
-    const oldName = oldWorker.fullName;
-    const updatedName = editWorkerDraft.fullName.trim();
-
-    setWorkers(workers.map(w => w.id === editWorkerDraft.id ? {
-      ...editWorkerDraft,
-      fullName: updatedName,
-      aliases: typeof editWorkerDraft.aliases === 'string' ? editWorkerDraft.aliases.split(',').map(a => a.trim()).filter(Boolean) : editWorkerDraft.aliases,
-      units: typeof editWorkerDraft.units === 'string' ? editWorkerDraft.units.split(',').map(u => u.trim()).filter(Boolean) : editWorkerDraft.units
-    } : w));
-
-    // Cascade name fix across rosters, plans, and visitors
-    if (oldName !== updatedName) {
-      setRosters(rosters.map(r => ({
-        ...r,
-        assignments: r.assignments.map(a => a.worker === oldName ? { ...a, worker: updatedName } : a)
-      })));
-      setPlans(plans.map(p => ({
-        ...p,
-        leader: p.leader === oldName ? updatedName : p.leader,
-        team: p.team.map(t => t === oldName ? updatedName : t)
-      })));
-      setVisitors(visitors.map(v => v.invitedBy === oldName ? { ...v, invitedBy: updatedName } : v));
-    }
-
-    setEditingWorkerId(null);
-    setEditWorkerDraft(null);
-    notify(`Updated ${updatedName} across all schedules and plans.`);
+  const handleDeleteNotice = (noticeId) => {
+    setPlansByYear({
+      ...plansByYear,
+      [selectedPlanYear]: {
+        ...currentYearData,
+        noticeBoard: currentYearData.noticeBoard.filter(n => n.id !== noticeId)
+      }
+    });
   };
 
-  const handleMergeWorkers = () => {
-    if (!mergeSourceId || !mergeTargetId || mergeSourceId === mergeTargetId) return;
-    const src = workers.find(w => w.id === mergeSourceId);
-    const tgt = workers.find(w => w.id === mergeTargetId);
-    if (!src || !tgt) return;
-
-    const mergedAliases = [...new Set([...tgt.aliases, src.fullName, ...src.aliases])];
-    setWorkers(workers
-      .map(w => w.id === tgt.id ? { ...w, aliases: mergedAliases } : w)
-      .filter(w => w.id !== src.id)
-    );
-
-    // Replace src.fullName everywhere with tgt.fullName
-    setRosters(rosters.map(r => ({
-      ...r,
-      assignments: r.assignments.map(a => a.worker === src.fullName ? { ...a, worker: tgt.fullName } : a)
-    })));
-    setPlans(plans.map(p => ({
-      ...p,
-      leader: p.leader === src.fullName ? tgt.fullName : p.leader,
-      team: p.team.map(t => t === src.fullName ? tgt.fullName : t)
-    })));
-
-    setMergeSourceId('');
-    setMergeTargetId('');
-    notify(`Merged "${src.fullName}" into "${tgt.fullName}" everywhere.`);
+  const handleAddGoal = (e) => {
+    e.preventDefault();
+    if (!newGoalForm.title.trim()) return;
+    const goal = { id: 'goal-' + Date.now(), ...newGoalForm, progress: Number(newGoalForm.progress) };
+    setPlansByYear({
+      ...plansByYear,
+      [selectedPlanYear]: {
+        ...currentYearData,
+        goals: [...currentYearData.goals, goal]
+      }
+    });
+    setNewGoalForm({ quarter: 'Q1', title: '', target: '', progress: 0, status: 'Planned' });
   };
 
-  const getWorkerUsageStats = (workerName) => {
-    let rosterCount = 0;
-    rosters.forEach(r => r.assignments.forEach(a => { if (a.worker === workerName) rosterCount++; }));
-    const planCount = plans.filter(p => p.leader === workerName || p.team.includes(workerName)).length;
-    const visitorCount = visitors.filter(v => v.invitedBy === workerName).length;
-    return { rosterCount, planCount, visitorCount };
+  const handleDeleteGoal = (goalId) => {
+    setPlansByYear({
+      ...plansByYear,
+      [selectedPlanYear]: {
+        ...currentYearData,
+        goals: currentYearData.goals.filter(g => g.id !== goalId)
+      }
+    });
   };
 
-  const handleConfirmPermanentDelete = () => {
-    if (!deleteTargetWorker) return;
-    const name = deleteTargetWorker.fullName;
-    setWorkers(workers.filter(w => w.id !== deleteTargetWorker.id));
-    setRosters(rosters.map(r => ({
-      ...r,
-      assignments: r.assignments.map(a => a.worker === name ? { ...a, worker: 'Unassigned' } : a)
-    })));
-    setPlans(plans.map(p => ({
-      ...p,
-      leader: p.leader === name ? 'Unassigned' : p.leader,
-      team: p.team.filter(t => t !== name)
-    })));
-    setDeleteTargetWorker(null);
-    notify(`Permanently deleted ${name} and unassigned active slots.`);
-  };
-
-  const handleArchiveWorker = (worker) => {
-    const nextStatus = worker.status === 'Active' ? 'Inactive' : 'Active';
-    setWorkers(workers.map(w => w.id === worker.id ? { ...w, status: nextStatus } : w));
-    setDeleteTargetWorker(null);
-    notify(`${worker.fullName} marked as ${nextStatus}.`);
-  };
-
-  const filteredWorkers = workers.filter(w => {
-    const matchesSearch = w.fullName.toLowerCase().includes(workerSearch.toLowerCase()) ||
-      w.aliases.some(a => a.toLowerCase().includes(workerSearch.toLowerCase())) ||
-      w.location.toLowerCase().includes(workerSearch.toLowerCase());
-    const matchesStatus = workerStatusFilter === 'All' || w.status === workerStatusFilter;
-    return matchesSearch && matchesStatus;
+  // ==========================================================================
+  // ATTENDANCE ENTRY STATE
+  // ==========================================================================
+  const [attForm, setAttForm] = useState({
+    date: '2026-11-29',
+    location: 'Warsaw',
+    serviceType: 'Sunday Worship',
+    adults: 22,
+    youths: 5,
+    children: 3,
+    visitors: 2,
+    offeringPln: 0
   });
 
-  const selectedRoster = rosters.find(r => r.id === selectedRosterId) || rosters[0];
+  const handleAddAttendance = (e) => {
+    e.preventDefault();
+    const qStr = getQuarterString(attForm.date);
+    const entry = {
+      id: 'att-' + Date.now(),
+      ...attForm,
+      period: qStr,
+      adults: Number(attForm.adults),
+      youths: Number(attForm.youths),
+      children: Number(attForm.children),
+      visitors: Number(attForm.visitors),
+      offeringPln: Number(attForm.offeringPln),
+      recordedBy: viewerName.trim() || (isHeadPastor ? 'Pastor Dare' : 'Authorized Usher')
+    };
+    setAttendance([entry, ...attendance]);
+  };
+
+  // ==========================================================================
+  // EXPORT CSV HELPER (HEAD PASTOR / FULL ACCESS ONLY)
+  // ==========================================================================
+  const exportDirectoryCsv = () => {
+    const headers = ['Category', 'Title', 'Full Name', 'Phone', 'Home Address', 'Emergency Contact', 'Emergency Phone', 'Location', 'Units', 'Access Role'];
+    const rows = people.map(p => [
+      p.category, p.title, p.fullName, p.phone, `"${p.address || ''}"`,
+      `"${p.emergencyName || ''}"`, p.emergencyPhone || '', p.location, `"${p.units.join('; ')}"`, p.accessRole
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DLBC_Poland_Directory_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  };
+
+  // ==========================================================================
+  // ROLE-BASED NAVIGATION TABS
+  // ==========================================================================
+  const navTabs = [
+    { id: 'overview', label: 'Overview & Notice Board', icon: Bell, visible: true },
+    { id: 'rosters', label: 'Ministering Rosters', icon: Calendar, visible: true },
+    { id: 'plans', label: `${selectedPlanYear} Strategic Plan`, icon: BookOpen, visible: true },
+    { id: 'attendance', label: 'Attendance & Services', icon: ClipboardList, visible: canEnterData },
+    { id: 'newcomers', label: 'Newcomers & Follow-Up', icon: UserPlus, visible: canEnterData },
+    { id: 'analytics', label: 'Growth & Service Analytics', icon: BarChart3, visible: isFullAdmin },
+    { id: 'directory', label: 'Workers & Members Directory', icon: Users, visible: isFullAdmin }
+  ].filter(t => t.visible);
+
+  const workersCount = people.filter(p => p.category === 'Worker').length;
+  const membersCount = people.filter(p => p.category === 'Member').length;
+  const activeNewcomersCount = newcomers.filter(n => !n.archived).length;
+  const archivedNewcomersCount = newcomers.filter(n => n.archived).length;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Toast Notification */}
-      {toast && (
-        <div className="fixed bottom-5 right-5 z-50 bg-indigo-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 text-sm font-medium">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          {toast}
-        </div>
-      )}
-
-      {/* Top Header & Role Switcher */}
-      <header className="bg-indigo-950 text-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="bg-amber-400 text-indigo-950 text-xs font-extrabold px-2 py-0.5 rounded uppercase tracking-wider">DLBC Poland</span>
-              <span className="text-indigo-200 text-xs">Warsaw • Gliwice • Online</span>
+      {/* TOP BAR: BRANDING + FLEXIBLE NAME INPUT + SPECIAL ACCESS UNLOCK */}
+      <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-extrabold text-lg shadow">
+              DL
             </div>
-            <h1 className="text-xl md:text-2xl font-bold mt-1">Church Operations & Ministry Platform</h1>
-          </div>
-
-          <div className="flex items-center gap-3 bg-indigo-900/80 px-3 py-2 rounded-xl border border-indigo-800">
-            <Shield className="w-4 h-4 text-amber-400" />
-            <div className="text-xs">
-              <div className="text-indigo-300">Active Role Preview</div>
-              <select
-                value={currentUserRole}
-                onChange={(e) => setCurrentUserRole(e.target.value)}
-                className="bg-transparent font-semibold text-white focus:outline-none cursor-pointer"
-              >
-                <option value="super_admin" className="text-slate-900">Pastor Dare (Super Admin)</option>
-                <option value="location_admin" className="text-slate-900">Pastor William (Location Admin)</option>
-                <option value="usher_entry" className="text-slate-900">Bro Pelumi (Usher / Data Entry)</option>
-                <option value="member_readonly" className="text-slate-900">Sis Abigail (Member View)</option>
-              </select>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-bold text-base sm:text-lg tracking-tight">DLBC Poland Operations Portal</h1>
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-800 text-amber-300 border border-slate-700">
+                  Warsaw • Wrocław • Poznań • Kraków
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">Deeper Life Bible Church Poland — National & Location Administration</p>
             </div>
           </div>
+
+          {/* FLEXIBLE NAME INPUT + SPECIAL ACCESS BADGE */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg">
+              <span className="text-xs text-slate-400">Your Name:</span>
+              <input
+                type="text"
+                value={viewerName}
+                onChange={(e) => handleNameChange(e.target.value)}
+                placeholder="Type your name..."
+                className="bg-slate-950 text-white text-xs font-medium px-2.5 py-1 rounded border border-slate-700 focus:outline-none focus:border-amber-400 w-36 sm:w-44"
+              />
+            </div>
+
+            {accessLevel === 'public_member' ? (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
+                  <Eye className="w-3.5 h-3.5 text-slate-400" />
+                  Public View
+                </span>
+                <button
+                  onClick={() => setShowUnlockModal(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  Special Entry
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  {accessLevel === 'head_pastor' && 'Head Pastor (Full Admin)'}
+                  {accessLevel === 'full_access' && 'Full Access Oversight'}
+                  {accessLevel === 'usher_entry' && 'Usher / Data Entry'}
+                </span>
+                <button
+                  onClick={handleLockToPublic}
+                  title="Lock back to Public Member View"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+                >
+                  <Unlock className="w-3.5 h-3.5" />
+                  Exit Admin
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <nav className="max-w-7xl mx-auto px-4 flex overflow-x-auto gap-1 border-t border-indigo-900/80">
-          {[
-            { id: 'dashboard', label: 'Command Dashboard', icon: LayoutDashboard },
-            { id: 'attendance', label: 'Attendance & First-Timers', icon: Users },
-            { id: 'rosters', label: 'Ministering Rosters', icon: Calendar },
-            { id: 'workers_admin', label: 'Members & Workers Admin', icon: UserPlus },
-            { id: 'plans', label: '2026 Plan & Noticeboard', icon: ClipboardList },
-            { id: 'analytics', label: 'Analytics & GitHub Setup', icon: BarChart3 }
-          ].map(tab => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition ${
-                  active
-                    ? 'border-amber-400 text-amber-300 bg-indigo-900/40'
-                    : 'border-transparent text-indigo-200 hover:text-white hover:bg-indigo-900/20'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            );
-          })}
+        {/* NAVIGATION BAR */}
+        <nav className="bg-slate-950/60 border-t border-slate-800/80 overflow-x-auto">
+          <div className="max-w-7xl mx-auto px-4 flex items-center gap-1">
+            {navTabs.map(tab => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition ${
+                    active
+                      ? 'border-amber-400 text-amber-300 bg-slate-900/70'
+                      : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-900/40'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </nav>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* 2026 Vision Banner */}
-        <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-blue-900 text-white rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-widest text-amber-300 font-semibold">2026 Theme • Acts 8:4</div>
-            <h2 className="text-lg md:text-xl font-bold mt-0.5">“Preach The Word, Brighten Your Corner!”</h2>
-            <p className="text-sm text-indigo-100 mt-1">Goal: As an evangelist, in every city, we will preach the word and raise disciples for God.</p>
+      {/* SPECIAL ENTRY PASSCODE MODAL */}
+      {showUnlockModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Special Leadership & Worker Entry</h3>
+                  <p className="text-xs text-slate-500">Unlocks restricted analytics, personal data & entry forms</p>
+                </div>
+              </div>
+              <button onClick={() => setShowUnlockModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUnlockSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Your Display Name</label>
+                <input
+                  type="text"
+                  value={viewerName}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="e.g., Pastor Dare, Pastor William, Bro Pelumi"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-amber-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Special Entry Passcode</label>
+                <input
+                  type="password"
+                  value={passcodeInput}
+                  onChange={(e) => setPasscodeInput(e.target.value)}
+                  placeholder="Enter access passcode..."
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-amber-500"
+                  required
+                />
+                {passcodeError && <p className="text-xs text-red-600 mt-1">{passcodeError}</p>}
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
+                <p className="font-semibold text-slate-800">Access Tiers:</p>
+                <p>• <strong>Head Pastor / Full Access:</strong> Full analytics, personal particulars, financial offerings, directory & archive controls.</p>
+                <p>• <strong>Usher / Data Entry:</strong> Attendance logging & newcomer follow-up (personal directory & offering totals remain hidden).</p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowUnlockModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg"
+                >
+                  Unlock Access
+                </button>
+              </div>
+            </form>
           </div>
-          <div className="flex gap-3 text-center">
-            <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-xl">
-              <div className="text-2xl font-bold text-amber-300">{activeWorkersList.length}</div>
-              <div className="text-xs text-indigo-100">Active Workers</div>
+        </div>
+      )}
+
+      {/* MAIN CONTENT CONTAINER */}
+      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        {/* WELCOME BANNER */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">
+              {selectedPlanYear} Theme • {currentYearData.theme}
+            </p>
+            <h2 className="text-xl font-bold text-slate-900 mt-0.5">
+              Welcome{viewerName.trim() ? `, ${viewerName.trim()}` : ' to DLBC Poland'}
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              {accessLevel === 'public_member'
+                ? 'You are viewing the public portal (Notice Board, Ministering Rosters & Annual Plan). Click "Special Entry" in the top bar for leadership or worker access.'
+                : `Signed in with ${accessLevel === 'head_pastor' ? 'Head Pastor Full Access' : accessLevel === 'full_access' ? 'Full Oversight Access' : 'Usher / Data Entry Access'}.`}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-center">
+              <div className="text-xs text-slate-500">Active Locations</div>
+              <div className="text-lg font-extrabold text-slate-900">4 Cities</div>
             </div>
-            <div className="bg-white/10 backdrop-blur px-4 py-2 rounded-xl">
-              <div className="text-2xl font-bold text-emerald-300">25.5</div>
-              <div className="text-xs text-indigo-100">2026 Avg Sun</div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-center">
+              <div className="text-xs text-slate-500">Sunday Avg (Q4)</div>
+              <div className="text-lg font-extrabold text-emerald-600">{latestSundayAvg}</div>
             </div>
+            {isFullAdmin && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-center">
+                <div className="text-xs text-amber-800">Workers / Members</div>
+                <div className="text-lg font-extrabold text-amber-900">{workersCount} / {membersCount}</div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* ================= TAB 1: DASHBOARD ================= */}
-        {activeTab === 'dashboard' && (
+        {/* ==================================================================== */}
+        {/* TAB 1: OVERVIEW & NOTICE BOARD (PUBLIC + ADMIN EDITABLE)             */}
+        {/* ==================================================================== */}
+        {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-lg flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-indigo-700" />
-                    This Week’s Ministering Timetable
-                  </h3>
-                  <button onClick={() => setActiveTab('rosters')} className="text-xs font-semibold text-indigo-700 hover:underline">
-                    Open Full Roster Builder →
-                  </button>
+            {/* NOTICE BOARD (2 COLUMNS) */}
+            <div className="lg:col-span-2 space-y-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-5 h-5 text-amber-600" />
+                    <h3 className="font-bold text-slate-900 text-base">Church Notice Board ({selectedPlanYear})</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-slate-500 font-medium">Year:</label>
+                    <select
+                      value={selectedPlanYear}
+                      onChange={(e) => setSelectedPlanYear(e.target.value)}
+                      className="text-xs font-semibold bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5"
+                    >
+                      {availableYears.map(yr => (
+                        <option key={yr} value={yr}>{yr}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-4">
-                  {rosters.slice(0, 3).map(r => (
-                    <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50/70">
-                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <div>
-                          <span className="font-bold text-slate-900">{r.serviceType}</span>
-                          <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-medium">{r.location}</span>
-                        </div>
-                        <span className="text-xs font-semibold text-slate-500">{r.date}</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs mt-3">
-                        {r.assignments.map((a, idx) => (
-                          <div key={idx} className="flex justify-between bg-white px-3 py-1.5 rounded-lg border border-slate-100">
-                            <span className="text-slate-500">{a.slot}</span>
-                            <span className="font-semibold text-slate-800">{a.worker}</span>
-                          </div>
-                        ))}
-                      </div>
+
+                {isFullAdmin && (
+                  <form onSubmit={handleAddNotice} className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 space-y-3">
+                    <div className="text-xs font-bold text-slate-800">Post New Announcement to {selectedPlanYear} Notice Board</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <input
+                        type="text"
+                        placeholder="Announcement title..."
+                        value={newNoticeForm.title}
+                        onChange={(e) => setNewNoticeForm({ ...newNoticeForm, title: e.target.value })}
+                        className="sm:col-span-2 px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                        required
+                      />
+                      <input
+                        type="date"
+                        value={newNoticeForm.date}
+                        onChange={(e) => setNewNoticeForm({ ...newNoticeForm, date: e.target.value })}
+                        className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                      />
                     </div>
-                  ))}
-                </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <input
+                        type="text"
+                        placeholder="Audience (e.g., All Locations, Warsaw Workers)"
+                        value={newNoticeForm.audience}
+                        onChange={(e) => setNewNoticeForm({ ...newNoticeForm, audience: e.target.value })}
+                        className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                      />
+                      <select
+                        value={newNoticeForm.priority}
+                        onChange={(e) => setNewNoticeForm({ ...newNoticeForm, priority: e.target.value })}
+                        className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                      >
+                        <option value="Normal">Normal Notice</option>
+                        <option value="Urgent">Urgent / Priority</option>
+                      </select>
+                    </div>
+                    <textarea
+                      rows={2}
+                      placeholder="Announcement details..."
+                      value={newNoticeForm.body}
+                      onChange={(e) => setNewNoticeForm({ ...newNoticeForm, body: e.target.value })}
+                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                      required
+                    />
+                    <button type="submit" className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                      Publish Notice
+                    </button>
+                  </form>
+                )}
+
+                {currentYearData.noticeBoard.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-6 text-center">No announcements posted for {selectedPlanYear} yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {currentYearData.noticeBoard.map(notice => (
+                      <div key={notice.id} className="border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition bg-white">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                notice.priority === 'Urgent' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {notice.priority}
+                              </span>
+                              <span className="text-xs text-slate-500">{notice.date} • {notice.audience}</span>
+                            </div>
+                            <h4 className="font-bold text-slate-900 text-sm mt-1">{notice.title}</h4>
+                          </div>
+                          {isFullAdmin && (
+                            <button
+                              onClick={() => handleDeleteNotice(notice.id)}
+                              className="text-slate-400 hover:text-red-600 p-1"
+                              title="Delete notice"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-600 mt-2 leading-relaxed">{notice.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                <h3 className="font-bold text-lg flex items-center gap-2 mb-3">
-                  <Bell className="w-5 h-5 text-amber-600" />
-                  Urgent Weekly Updates
+            {/* RIGHT COLUMN: SERVICE SCHEDULE & UPCOMING ROSTER PREVIEW */}
+            <div className="space-y-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <h3 className="font-bold text-slate-900 text-sm mb-3 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-amber-600" />
+                  Weekly Service Days (Poland)
                 </h3>
-                <div className="space-y-3">
-                  {notices.map(n => (
-                    <div key={n.id} className={`p-3.5 rounded-xl border ${n.urgent ? 'bg-amber-50/80 border-amber-200' : 'bg-slate-50 border-slate-200'}`}>
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="font-bold text-amber-800">{n.category}</span>
-                        <span className="text-slate-500">{n.location}</span>
-                      </div>
-                      <div className="font-semibold text-sm text-slate-900">{n.title}</div>
-                      <p className="text-xs text-slate-600 mt-1">{n.body}</p>
-                    </div>
-                  ))}
+                <div className="space-y-2.5 text-xs">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="font-bold text-slate-900">Sunday Worship Service</div>
+                    <div className="text-slate-600 mt-0.5">09:30 AM – 12:00 PM • All Locations</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="font-bold text-slate-900">Midweek Koinonia / Home Caring</div>
+                    <div className="text-slate-600 mt-0.5">Wednesdays • 18:30 PM • House Cells & Online</div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <div className="font-bold text-slate-900">Thursday Revival & Evangelism Training</div>
+                    <div className="text-slate-600 mt-0.5">Thursdays • 18:30 PM • Location Centers</div>
+                  </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
-                <h3 className="font-bold text-base mb-3">Recent First-Timers Follow-Up</h3>
-                <div className="space-y-2">
-                  {visitors.slice(0, 4).map(v => (
-                    <div key={v.id} className="flex items-center justify-between text-xs p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-                      <div>
-                        <div className="font-bold text-slate-900">{v.name} <span className="text-slate-400 font-normal">({v.location})</span></div>
-                        <div className="text-slate-500">{v.phone}</div>
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-slate-900 text-sm">Next Ministering Roster</h3>
+                  <button onClick={() => setActiveTab('rosters')} className="text-xs font-semibold text-amber-600 hover:underline">
+                    View All
+                  </button>
+                </div>
+                {rosters[0] && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-slate-700">
+                      {rosters[0].date} • {rosters[0].location} ({rosters[0].serviceType})
+                    </div>
+                    {rosters[0].assignments.map((a, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 last:border-0">
+                        <span className="text-slate-500">{a.slot}</span>
+                        <span className="font-semibold text-slate-900">{a.worker}</span>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full font-semibold ${
-                        v.status === 'Integrated' ? 'bg-emerald-100 text-emerald-800' :
-                        v.status === 'Contacted' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
-                      }`}>{v.status}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================================== */}
+        {/* TAB 2: MINISTERING ROSTERS (PUBLIC VIEW + ADMIN EDIT)                */}
+        {/* ==================================================================== */}
+        {activeTab === 'rosters' && (
+          <div className="space-y-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Ministering & Duty Rosters</h3>
+                  <p className="text-xs text-slate-500">Assigned workers for Sunday Worship, Koinonia, and Revival services</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {rosters.map(r => (
+                  <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold">{r.location}</span>
+                        <h4 className="font-bold text-slate-900 text-sm mt-1">{r.serviceType}</h4>
+                        <p className="text-xs text-slate-500">{r.date}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const txt = `*DLBC Poland Roster (${r.date} - ${r.location})*\n${r.serviceType}\n` +
+                            r.assignments.map(a => `• ${a.time} ${a.slot}: *${a.worker}*`).join('\n');
+                          navigator.clipboard?.writeText(txt);
+                          alert('Roster copied for WhatsApp!');
+                        }}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg"
+                      >
+                        Copy WhatsApp
+                      </button>
+                    </div>
+                    <div className="divide-y divide-slate-200 bg-white rounded-lg border border-slate-200 px-3">
+                      {r.assignments.map((a, i) => (
+                        <div key={i} className="py-2 flex items-center justify-between text-xs">
+                          <div>
+                            <span className="font-mono text-slate-400 mr-2">{a.time}</span>
+                            <span className="text-slate-700">{a.slot}</span>
+                          </div>
+                          <span className="font-bold text-slate-900">{a.worker}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================================== */}
+        {/* TAB 3: MULTI-YEAR STRATEGIC PLAN (SWITCHABLE TO ANY YEAR)            */}
+        {/* ==================================================================== */}
+        {activeTab === 'plans' && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-4">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">Annual Strategic Plan & Vision Tracker</h3>
+                <p className="text-xs text-slate-500">Switch between years or create a new annual plan (e.g., 2025, 2026, 2027, 2028)</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {availableYears.map(yr => (
+                  <button
+                    key={yr}
+                    onClick={() => setSelectedPlanYear(yr)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                      selectedPlanYear === yr
+                        ? 'bg-slate-900 text-amber-300 shadow'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {yr} Plan
+                  </button>
+                ))}
+
+                {isFullAdmin && (
+                  <form onSubmit={handleCreateYear} className="flex items-center gap-1.5 ml-2">
+                    <input
+                      type="text"
+                      maxLength={4}
+                      placeholder="Add Year (2028)"
+                      value={newYearInput}
+                      onChange={(e) => setNewYearInput(e.target.value)}
+                      className="w-32 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg"
+                    />
+                    <button type="submit" className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg">
+                      + Year
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+
+            {/* EDITABLE ANNUAL THEME */}
+            <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-800 mb-1">
+                {selectedPlanYear} Prophetic & Operational Theme
+              </label>
+              {isFullAdmin ? (
+                <input
+                  type="text"
+                  value={currentYearData.theme}
+                  onChange={(e) => handleUpdateYearTheme(e.target.value)}
+                  className="w-full bg-white border border-amber-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none"
+                />
+              ) : (
+                <div className="text-sm font-bold text-slate-900">{currentYearData.theme}</div>
+              )}
+            </div>
+
+            {/* ADD NEW STRATEGIC GOAL (FULL ADMIN ONLY) */}
+            {isFullAdmin && (
+              <form onSubmit={handleAddGoal} className="bg-slate-50 border border-slate-200 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-5 gap-2.5 items-end">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Quarter</label>
+                  <input
+                    type="text"
+                    value={newGoalForm.quarter}
+                    onChange={(e) => setNewGoalForm({ ...newGoalForm, quarter: e.target.value })}
+                    placeholder="Q1 2027"
+                    className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Strategic Milestone / Goal</label>
+                  <input
+                    type="text"
+                    value={newGoalForm.title}
+                    onChange={(e) => setNewGoalForm({ ...newGoalForm, title: e.target.value })}
+                    placeholder="e.g., Launch Gdańsk Outreach Fellowship"
+                    className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Target Metric</label>
+                  <input
+                    type="text"
+                    value={newGoalForm.target}
+                    onChange={(e) => setNewGoalForm({ ...newGoalForm, target: e.target.value })}
+                    placeholder="15 Members"
+                    className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                  />
+                </div>
+                <button type="submit" className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                  Add Goal
+                </button>
+              </form>
+            )}
+
+            {/* GOALS LIST */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {currentYearData.goals.map(goal => (
+                <div key={goal.id} className="border border-slate-200 rounded-xl p-4 space-y-2.5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-bold">{goal.quarter}</span>
+                      <h4 className="font-bold text-slate-900 text-sm mt-1">{goal.title}</h4>
+                      <p className="text-xs text-slate-500">Target: {goal.target}</p>
+                    </div>
+                    {isFullAdmin && (
+                      <button onClick={() => handleDeleteGoal(goal.id)} className="text-slate-400 hover:text-red-600">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div className="bg-emerald-600 h-2 rounded-full" style={{ width: `${goal.progress}%` }} />
+                  </div>
+                  <div className="flex justify-between text-[11px] font-semibold text-slate-600">
+                    <span>Status: {goal.status}</span>
+                    <span>{goal.progress}%</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================================== */}
+        {/* TAB 4: ATTENDANCE ENTRY & SERVICE LOG (USHER + FULL ADMIN)           */}
+        {/* ==================================================================== */}
+        {activeTab === 'attendance' && canEnterData && (
+          <div className="space-y-6">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <h3 className="font-bold text-slate-900 text-base mb-1">Log Service Attendance</h3>
+              <p className="text-xs text-slate-500 mb-4">Record Sunday Worship, Koinonia / Home Caring, Bible Study, or Revival services</p>
+
+              <form onSubmit={handleAddAttendance} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 items-end">
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Date</label>
+                  <input type="date" value={attForm.date} onChange={(e) => setAttForm({ ...attForm, date: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg" required />
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
+                  <select value={attForm.location} onChange={(e) => setAttForm({ ...attForm, location: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg">
+                    <option>Warsaw</option>
+                    <option>Wrocław</option>
+                    <option>Poznań</option>
+                    <option>Kraków</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Service Day / Type</label>
+                  <select value={attForm.serviceType} onChange={(e) => setAttForm({ ...attForm, serviceType: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg">
+                    <option>Sunday Worship</option>
+                    <option>Koinonia / Home Caring</option>
+                    <option>Bible Study</option>
+                    <option>Revival / Evangelism</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Adults</label>
+                  <input type="number" min="0" value={attForm.adults} onChange={(e) => setAttForm({ ...attForm, adults: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Youths</label>
+                  <input type="number" min="0" value={attForm.youths} onChange={(e) => setAttForm({ ...attForm, youths: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Children</label>
+                  <input type="number" min="0" value={attForm.children} onChange={(e) => setAttForm({ ...attForm, children: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg" />
+                </div>
+                <div>
+                  <button type="submit" className="w-full px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                    Save Record
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm overflow-x-auto">
+              <h4 className="font-bold text-slate-900 text-sm mb-3">Recent Attendance Log</h4>
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500">
+                    <th className="py-2">Date</th>
+                    <th className="py-2">Location</th>
+                    <th className="py-2">Service Type</th>
+                    <th className="py-2">Adults</th>
+                    <th className="py-2">Youths</th>
+                    <th className="py-2">Children</th>
+                    <th className="py-2 font-bold text-slate-800">Total</th>
+                    {isFullAdmin && <th className="py-2">Offering (PLN)</th>}
+                    <th className="py-2">Recorded By</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {attendance.slice(0, 15).map(rec => (
+                    <tr key={rec.id} className="hover:bg-slate-50">
+                      <td className="py-2 font-medium">{rec.date}</td>
+                      <td className="py-2">{rec.location}</td>
+                      <td className="py-2">
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                          rec.serviceType === 'Sunday Worship' ? 'bg-amber-100 text-amber-800' :
+                          rec.serviceType === 'Koinonia / Home Caring' ? 'bg-emerald-100 text-emerald-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {rec.serviceType}
+                        </span>
+                      </td>
+                      <td className="py-2">{rec.adults}</td>
+                      <td className="py-2">{rec.youths}</td>
+                      <td className="py-2">{rec.children}</td>
+                      <td className="py-2 font-bold text-slate-900">{rec.adults + rec.youths + rec.children}</td>
+                      {isFullAdmin && <td className="py-2 font-mono">{rec.offeringPln} PLN</td>}
+                      <td className="py-2 text-slate-500">{rec.recordedBy}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================================== */}
+        {/* TAB 5: NEWCOMERS (MONTH / QUARTER FILTER + ARCHIVE + DELETE)         */}
+        {/* ==================================================================== */}
+        {activeTab === 'newcomers' && canEnterData && (
+          <div className="space-y-6">
+            {/* ADD NEWCOMER FORM */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <h3 className="font-bold text-slate-900 text-base mb-1">Register First-Timer / Newcomer</h3>
+              <p className="text-xs text-slate-500 mb-4">Active view displays newcomers by selected Month or Quarter; older records can be archived safely.</p>
+
+              <form onSubmit={handleAddNewcomer} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                  <input type="text" value={ncForm.fullName} onChange={(e) => setNcForm({ ...ncForm, fullName: e.target.value })} placeholder="Visitor full name" className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+                  <input type="text" value={ncForm.phone} onChange={(e) => setNcForm({ ...ncForm, phone: e.target.value })} placeholder="+48 ..." className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
+                  <select value={ncForm.location} onChange={(e) => setNcForm({ ...ncForm, location: e.target.value })} className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg">
+                    <option>Warsaw</option>
+                    <option>Wrocław</option>
+                    <option>Poznań</option>
+                    <option>Kraków</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Visit Date</label>
+                  <input type="date" value={ncForm.visitDate} onChange={(e) => setNcForm({ ...ncForm, visitDate: e.target.value })} className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Follow-Up Worker</label>
+                  <input type="text" value={ncForm.assignedFollowUp} onChange={(e) => setNcForm({ ...ncForm, assignedFollowUp: e.target.value })} className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" />
+                </div>
+                <button type="submit" className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                  + Save Newcomer
+                </button>
+              </form>
+            </div>
+
+            {/* FILTER BAR: THIS MONTH | THIS QUARTER | ARCHIVED VAULT */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setNcViewMode('month')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${ncViewMode === 'month' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}
+                  >
+                    Monthly View
+                  </button>
+                  <button
+                    onClick={() => setNcViewMode('quarter')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${ncViewMode === 'quarter' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}
+                  >
+                    Quarterly View
+                  </button>
+                  <button
+                    onClick={() => setNcViewMode('archived')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 ${ncViewMode === 'archived' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}
+                  >
+                    <Archive className="w-3.5 h-3.5" />
+                    Archived Vault ({archivedNewcomersCount})
+                  </button>
+                </div>
+
+                {ncViewMode === 'month' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">Month:</span>
+                    <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="px-2.5 py-1 text-xs border border-slate-300 rounded-lg" />
+                  </div>
+                )}
+                {ncViewMode === 'quarter' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">Quarter:</span>
+                    <select value={selectedQuarter} onChange={(e) => setSelectedQuarter(e.target.value)} className="px-2.5 py-1 text-xs border border-slate-300 rounded-lg">
+                      <option value="2026-Q4">2026-Q4 (Oct–Dec)</option>
+                      <option value="2026-Q3">2026-Q3 (Jul–Sep)</option>
+                      <option value="2026-Q2">2026-Q2 (Apr–Jun)</option>
+                      <option value="2026-Q1">2026-Q1 (Jan–Mar)</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {visibleNewcomers.length === 0 ? (
+                <p className="text-xs text-slate-500 py-8 text-center">No newcomer records found for this filter period.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-slate-500">
+                        <th className="py-2">Name</th>
+                        <th className="py-2">Phone</th>
+                        <th className="py-2">Location</th>
+                        <th className="py-2">Visit Date</th>
+                        <th className="py-2">Assigned Worker</th>
+                        <th className="py-2">Notes</th>
+                        <th className="py-2 text-right">Archive / Delete</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {visibleNewcomers.map(nc => (
+                        <tr key={nc.id} className="hover:bg-slate-50">
+                          <td className="py-2.5 font-bold text-slate-900">{nc.fullName}</td>
+                          <td className="py-2.5 font-mono">{nc.phone}</td>
+                          <td className="py-2.5">{nc.location}</td>
+                          <td className="py-2.5">{nc.visitDate}</td>
+                          <td className="py-2.5 text-emerald-700 font-semibold">{nc.assignedFollowUp}</td>
+                          <td className="py-2.5 text-slate-500 max-w-xs truncate">{nc.notes}</td>
+                          <td className="py-2.5 text-right space-x-2">
+                            <button
+                              onClick={() => toggleArchiveNewcomer(nc.id)}
+                              title={nc.archived ? 'Restore to Active List' : 'Archive Newcomer'}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold"
+                            >
+                              {nc.archived ? <RotateCcw className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
+                              {nc.archived ? 'Restore' : 'Archive'}
+                            </button>
+                            {isFullAdmin && (
+                              <button
+                                onClick={() => deleteNewcomer(nc.id)}
+                                title="Permanently Delete"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                Delete
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================================== */}
+        {/* TAB 6: GROWTH & SERVICE ANALYTICS (HEAD PASTOR / FULL ACCESS ONLY)   */}
+        {/* ==================================================================== */}
+        {activeTab === 'analytics' && isFullAdmin && (
+          <div className="space-y-6">
+            {/* TOP KPI STRIP */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div>
+                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-emerald-600" />
+                  Leadership Growth & Service Comparison Analytics
+                </h3>
+                <p className="text-xs text-slate-500">Restricted to Head Pastor & Full-Access Oversight</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-600">Filter Location:</span>
+                <select
+                  value={analyticsLocation}
+                  onChange={(e) => setAnalyticsLocation(e.target.value)}
+                  className="px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg bg-slate-50"
+                >
+                  <option>All Locations</option>
+                  <option>Warsaw</option>
+                  <option>Wrocław</option>
+                  <option>Poznań</option>
+                  <option>Kraków</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* CHART 1: MULTI-YEAR SUNDAY GROWTH TREND */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Multi-Year Sunday Worship Growth Trend</h4>
+                    <p className="text-xs text-slate-500">Average Sunday attendance from 2023 H2 to 2026 Q4</p>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800">
+                    {overallGrowthPct >= 0 ? `+${overallGrowthPct}%` : `${overallGrowthPct}%`} Growth
+                  </span>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  {growthTrendData.map(item => {
+                    const maxVal = Math.max(...growthTrendData.map(d => d.avg), 30);
+                    const widthPct = Math.min(100, Math.round((item.avg / maxVal) * 100));
+                    return (
+                      <div key={item.label} className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="font-semibold text-slate-700">{item.label}</span>
+                          <span className="font-extrabold text-slate-900">{item.avg} avg</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-slate-800 to-amber-500 h-3 rounded-full transition-all duration-500"
+                            style={{ width: `${widthPct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* CHART 2: SUNDAY WORSHIP VS KOINONIA / OTHER DAYS COMPARISON */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                <div className="mb-4">
+                  <h4 className="font-bold text-slate-900 text-sm">Sunday Worship vs. Koinonia & Other Service Days</h4>
+                  <p className="text-xs text-slate-500">Midweek engagement ratio compared against Sunday attendance baseline</p>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  {serviceComparisonData.map(s => (
+                    <div key={s.type} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-900">{s.type}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-slate-900">{s.avg} avg</span>
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                            s.type === 'Sunday Worship'
+                              ? 'bg-slate-200 text-slate-800'
+                              : s.retentionPct >= 70
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {s.type === 'Sunday Worship' ? '100% Baseline' : `${s.retentionPct}% of Sunday`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                        <div
+                          className={`h-2.5 rounded-full ${
+                            s.type === 'Sunday Worship' ? 'bg-slate-900' :
+                            s.type === 'Koinonia / Home Caring' ? 'bg-emerald-600' : 'bg-blue-600'
+                          }`}
+                          style={{ width: `${Math.min(100, s.retentionPct)}%` }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -611,132 +1436,310 @@ export default function App() {
           </div>
         )}
 
-        {/* ================= TAB 2: ATTENDANCE & FIRST-TIMERS ================= */}
-        {activeTab === 'attendance' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              {canEnterAttendance && (
-                <form onSubmit={handleAddAttendance} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
-                  <h3 className="font-bold text-lg">Record Service / Event Attendance</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Date</label>
-                      <input type="date" value={attForm.date} onChange={e => setAttForm({ ...attForm, date: e.target.value })} className="w-full border rounded-lg px-3 py-2" required />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Service / Program</label>
-                      <select value={attForm.serviceType} onChange={e => setAttForm({ ...attForm, serviceType: e.target.value })} className="w-full border rounded-lg px-3 py-2">
-                        <option>Sunday Morning Worship</option>
-                        <option>Sunday Koinonia</option>
-                        <option>Tuesday Bible Study</option>
-                        <option>Saturday Morning Prayer</option>
-                        <option>Monthly Vigil</option>
-                        <option>Easter Retreat</option>
-                        <option>Special Program (LIFTED / Congress)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Location</label>
-                      <select value={attForm.location} onChange={e => setAttForm({ ...attForm, location: e.target.value })} className="w-full border rounded-lg px-3 py-2">
-                        <option>Warsaw</option>
-                        <option>Gliwice</option>
-                        <option>Online</option>
-                        <option>Combined</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Session / Status</label>
-                      <select value={attForm.status} onChange={e => setAttForm({ ...attForm, status: e.target.value })} className="w-full border rounded-lg px-3 py-2">
-                        <option value="Held">Held (Regular Count)</option>
-                        <option value="GCK Broadcast">GCK Broadcast</option>
-                        <option value="Combined Service">Combined Service</option>
-                        <option value="No Service">No Service</option>
-                      </select>
-                    </div>
+        {/* ==================================================================== */}
+        {/* TAB 7: SEPARATE WORKERS & MEMBERS DIRECTORY + PARTICULARS            */}
+        {/* ==================================================================== */}
+        {activeTab === 'directory' && isFullAdmin && (
+          <div className="space-y-6">
+            {/* ADD WORKER OR MEMBER PARTICULARS FORM */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Add Worker or Member Particulars</h3>
+                  <p className="text-xs text-slate-500">Capture Full Name, Phone Number, Home Address, Emergency Contact, and assign Worker or Member classification</p>
+                </div>
+                <button
+                  onClick={exportDirectoryCsv}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export CSV
+                </button>
+              </div>
+
+              <form onSubmit={handleAddPerson} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Classification</label>
+                  <select
+                    value={newPersonForm.category}
+                    onChange={(e) => setNewPersonForm({ ...newPersonForm, category: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-lg bg-amber-50"
+                  >
+                    <option value="Worker">Worker</option>
+                    <option value="Member">Member</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Bro Samuel Adeyemi"
+                    value={newPersonForm.fullName}
+                    onChange={(e) => setNewPersonForm({ ...newPersonForm, fullName: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    placeholder="+48 500 000 000"
+                    value={newPersonForm.phone}
+                    onChange={(e) => setNewPersonForm({ ...newPersonForm, phone: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
+                  <select
+                    value={newPersonForm.location}
+                    onChange={(e) => setNewPersonForm({ ...newPersonForm, location: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                  >
+                    <option>Warsaw</option>
+                    <option>Wrocław</option>
+                    <option>Poznań</option>
+                    <option>Kraków</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Home Address</label>
+                  <input
+                    type="text"
+                    placeholder="Street, Apt, Postal Code, City"
+                    value={newPersonForm.address}
+                    onChange={(e) => setNewPersonForm({ ...newPersonForm, address: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Emergency Contact (Who to Contact)</label>
+                  <input
+                    type="text"
+                    placeholder="Contact Person Name"
+                    value={newPersonForm.emergencyName}
+                    onChange={(e) => setNewPersonForm({ ...newPersonForm, emergencyName: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Emergency Contact Number</label>
+                  <input
+                    type="text"
+                    placeholder="+48 500 000 999"
+                    value={newPersonForm.emergencyPhone}
+                    onChange={(e) => setNewPersonForm({ ...newPersonForm, emergencyPhone: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Ministry Units / Fellowship Group (comma-separated)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Ushering, Choir, STS, Evangelism"
+                    value={newPersonForm.unitsText}
+                    onChange={(e) => setNewPersonForm({ ...newPersonForm, unitsText: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                  />
+                </div>
+
+                <div className="flex items-end">
+                  <button type="submit" className="w-full px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                    Save to {newPersonForm.category}s
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* SEPARATE TABS: WORKERS DIRECTORY VS MEMBERS DIRECTORY */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setDirectorySubTab('Worker')}
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition ${
+                      directorySubTab === 'Worker'
+                        ? 'bg-slate-900 text-amber-300 shadow'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    Workers Directory ({workersCount})
+                  </button>
+                  <button
+                    onClick={() => setDirectorySubTab('Member')}
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition ${
+                      directorySubTab === 'Member'
+                        ? 'bg-slate-900 text-amber-300 shadow'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    Members Directory ({membersCount})
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                    <input
+                      type="text"
+                      placeholder="Search name, phone, address..."
+                      value={dirSearch}
+                      onChange={(e) => setDirSearch(e.target.value)}
+                      className="pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg w-52"
+                    />
                   </div>
+                  <select
+                    value={dirLocationFilter}
+                    onChange={(e) => setDirLocationFilter(e.target.value)}
+                    className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg"
+                  >
+                    <option value="All">All Locations</option>
+                    <option value="Warsaw">Warsaw</option>
+                    <option value="Wrocław">Wrocław</option>
+                    <option value="Poznań">Poznań</option>
+                    <option value="Kraków">Kraków</option>
+                  </select>
+                </div>
+              </div>
 
-                  {/* Toggleable Demographic Fields */}
-                  <div>
-                    <div className="text-xs font-semibold text-slate-600 mb-2">Choose Demographic Fields to Track for This Service:</div>
-                    <div className="flex flex-wrap gap-2">
-                      {ALL_CATEGORIES.map(cat => {
-                        const selected = attForm.activeCats.includes(cat);
-                        return (
-                          <button
-                            type="button"
-                            key={cat}
-                            onClick={() => {
-                              const next = selected ? attForm.activeCats.filter(c => c !== cat) : [...attForm.activeCats, cat];
-                              setAttForm({ ...attForm, activeCats: next });
-                            }}
-                            className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${
-                              selected ? 'bg-indigo-900 text-white border-indigo-900' : 'bg-slate-100 text-slate-600 border-slate-200'
-                            }`}
-                          >
-                            {selected ? '✓ ' : '+ '}{cat}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {attForm.status === 'Held' && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                      {attForm.activeCats.map(cat => (
-                        <div key={cat} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                          <label className="block text-xs font-bold text-slate-700 mb-1">{cat}</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={attForm.counts[cat] || 0}
-                            onChange={e => setAttForm({ ...attForm, counts: { ...attForm.counts, [cat]: e.target.value } })}
-                            className="w-full border rounded-lg px-2.5 py-1.5 text-sm font-bold bg-white"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-center pt-2">
-                    <div className="text-sm font-bold text-indigo-950">
-                      Calculated Total: {attForm.status === 'Held'
-                        ? attForm.activeCats.filter(c => c !== 'Visitors').reduce((sum, c) => sum + Number(attForm.counts[c] || 0), 0)
-                        : 0}
-                    </div>
-                    <button type="submit" className="bg-indigo-900 hover:bg-indigo-800 text-white px-5 py-2 rounded-xl text-sm font-semibold">
-                      Save Attendance Entry
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Attendance History Log */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 overflow-x-auto">
-                <h3 className="font-bold text-lg mb-3">Attendance Register</h3>
-                <table className="w-full text-left text-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b text-xs text-slate-500 uppercase">
-                      <th className="py-2">Date</th>
-                      <th className="py-2">Service</th>
-                      <th className="py-2">Location</th>
-                      <th className="py-2">Breakdown</th>
-                      <th className="py-2">Total</th>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="py-2.5">Full Name</th>
+                      <th className="py-2.5">Phone Number</th>
+                      <th className="py-2.5">Home Address</th>
+                      <th className="py-2.5">Emergency Contact (Who to Contact)</th>
+                      <th className="py-2.5">Location</th>
+                      <th className="py-2.5">Classification</th>
+                      <th className="py-2.5 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
-                    {attendance.map(row => {
-                      const total = Object.entries(row.counts)
-                        .filter(([k]) => k !== 'Visitors')
-                        .reduce((s, [, v]) => s + Number(v || 0), 0);
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredDirectory.map(person => {
+                      const isEditing = editingPersonId === person.id;
                       return (
-                        <tr key={row.id}>
-                          <td className="py-2.5 font-medium">{row.date}</td>
-                          <td className="py-2.5">{row.serviceType}</td>
-                          <td className="py-2.5"><span className="px-2 py-0.5 bg-slate-100 rounded text-xs font-medium">{row.location}</span></td>
-                          <td className="py-2.5 text-xs text-slate-600">
-                            {Object.entries(row.counts).map(([k, v]) => `${k}: ${v}`).join(' • ')}
+                        <tr key={person.id} className="hover:bg-slate-50 align-top">
+                          <td className="py-3 pr-2">
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={editPersonDraft.fullName}
+                                onChange={(e) => setEditPersonDraft({ ...editPersonDraft, fullName: e.target.value })}
+                                className="px-2 py-1 border border-slate-300 rounded w-full"
+                              />
+                            ) : (
+                              <div>
+                                <div className="font-bold text-slate-900">{person.fullName}</div>
+                                <div className="text-[11px] text-slate-500">{person.units.join(' • ')}</div>
+                              </div>
+                            )}
                           </td>
-                          <td className="py-2.5 font-bold text-indigo-900">{total}</td>
+
+                          <td className="py-3 pr-2 font-mono">
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={editPersonDraft.phone}
+                                onChange={(e) => setEditPersonDraft({ ...editPersonDraft, phone: e.target.value })}
+                                className="px-2 py-1 border border-slate-300 rounded w-32"
+                              />
+                            ) : person.phone}
+                          </td>
+
+                          <td className="py-3 pr-2 text-slate-700">
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={editPersonDraft.address}
+                                onChange={(e) => setEditPersonDraft({ ...editPersonDraft, address: e.target.value })}
+                                className="px-2 py-1 border border-slate-300 rounded w-44"
+                              />
+                            ) : (
+                              <span className="inline-flex items-start gap-1">
+                                <Home className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                                {person.address || '—'}
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-3 pr-2">
+                            {isEditing ? (
+                              <div className="space-y-1">
+                                <input
+                                  type="text"
+                                  placeholder="Contact name"
+                                  value={editPersonDraft.emergencyName}
+                                  onChange={(e) => setEditPersonDraft({ ...editPersonDraft, emergencyName: e.target.value })}
+                                  className="px-2 py-1 border border-slate-300 rounded w-36 block"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Contact phone"
+                                  value={editPersonDraft.emergencyPhone}
+                                  onChange={(e) => setEditPersonDraft({ ...editPersonDraft, emergencyPhone: e.target.value })}
+                                  className="px-2 py-1 border border-slate-300 rounded w-36 block"
+                                />
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="font-semibold text-slate-800">{person.emergencyName || '—'}</div>
+                                <div className="font-mono text-[11px] text-slate-500">{person.emergencyPhone || ''}</div>
+                              </div>
+                            )}
+                          </td>
+
+                          <td className="py-3 pr-2">{person.location}</td>
+
+                          <td className="py-3 pr-2">
+                            <select
+                              value={person.category}
+                              onChange={(e) => handleToggleCategory(person.id, e.target.value)}
+                              className={`px-2 py-1 rounded text-[11px] font-bold border ${
+                                person.category === 'Worker'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                  : 'bg-blue-50 text-blue-800 border-blue-300'
+                              }`}
+                            >
+                              <option value="Worker">Worker</option>
+                              <option value="Member">Member</option>
+                            </select>
+                          </td>
+
+                          <td className="py-3 text-right whitespace-nowrap space-x-1.5">
+                            {isEditing ? (
+                              <>
+                                <button onClick={saveEditedPerson} className="px-2 py-1 bg-emerald-600 text-white rounded font-semibold">
+                                  Save
+                                </button>
+                                <button onClick={() => setEditingPersonId(null)} className="px-2 py-1 bg-slate-200 text-slate-700 rounded font-semibold">
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setEditingPersonId(person.id);
+                                  setEditPersonDraft({ ...person });
+                                }}
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-semibold"
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
@@ -744,598 +1747,9 @@ export default function App() {
                 </table>
               </div>
             </div>
-
-            {/* First-Timers & Invitees Directory */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
-              <h3 className="font-bold text-lg">First-Timers & Invitees CRM</h3>
-              {canEnterAttendance && (
-                <form onSubmit={handleAddVisitor} className="space-y-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-sm">
-                  <input
-                    type="text"
-                    placeholder="Invitee / Visitor Name"
-                    value={visitorForm.name}
-                    onChange={e => setVisitorForm({ ...visitorForm, name: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 bg-white"
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="Phone (+48... or +234...)"
-                    value={visitorForm.phone}
-                    onChange={e => setVisitorForm({ ...visitorForm, phone: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 bg-white"
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <select value={visitorForm.location} onChange={e => setVisitorForm({ ...visitorForm, location: e.target.value })} className="border rounded-lg px-2 py-2 bg-white text-xs">
-                      <option>Warsaw</option>
-                      <option>Gliwice</option>
-                      <option>Online</option>
-                    </select>
-                    <select value={visitorForm.invitedBy} onChange={e => setVisitorForm({ ...visitorForm, invitedBy: e.target.value })} className="border rounded-lg px-2 py-2 bg-white text-xs">
-                      {activeWorkersList.map(w => <option key={w.id}>{w.fullName}</option>)}
-                    </select>
-                  </div>
-                  <button type="submit" className="w-full bg-indigo-900 text-white py-2 rounded-lg font-semibold text-xs">
-                    + Log First-Timer
-                  </button>
-                </form>
-              )}
-
-              <div className="space-y-2.5">
-                {visitors.map(v => (
-                  <div key={v.id} className="p-3 rounded-xl border border-slate-200 text-xs space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-sm text-slate-900">{v.name}</span>
-                      <select
-                        value={v.status}
-                        onChange={e => setVisitors(visitors.map(item => item.id === v.id ? { ...item, status: e.target.value } : item))}
-                        className="border rounded px-2 py-0.5 text-xs font-semibold bg-slate-50"
-                      >
-                        <option>New</option>
-                        <option>Contacted</option>
-                        <option>Integrated</option>
-                      </select>
-                    </div>
-                    <div className="text-slate-600">{v.phone} • {v.location}</div>
-                    <div className="text-slate-400">Source: {v.program} • Invited by {v.invitedBy}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 3: MINISTERING ROSTERS ================= */}
-        {activeTab === 'rosters' && (
-          <div className="space-y-6">
-            {scheduleConflicts.length > 0 && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-900 p-4 rounded-2xl flex items-start gap-3 text-sm">
-                <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-bold">Double-Booking Conflict Detected:</div>
-                  {scheduleConflicts.map((c, idx) => <div key={idx}>{c}</div>)}
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="space-y-4">
-                {canEditSchedules && (
-                  <form onSubmit={handleCreateRoster} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3 text-sm">
-                    <h3 className="font-bold text-base">Generate Service Roster</h3>
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Service Template</label>
-                      <select value={newRosterMeta.serviceType} onChange={e => setNewRosterMeta({ ...newRosterMeta, serviceType: e.target.value })} className="w-full border rounded-lg px-3 py-2">
-                        {Object.keys(SERVICE_TEMPLATES).map(t => <option key={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Date</label>
-                        <input type="date" value={newRosterMeta.date} onChange={e => setNewRosterMeta({ ...newRosterMeta, date: e.target.value })} className="w-full border rounded-lg px-3 py-2" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1">Campus</label>
-                        <select value={newRosterMeta.location} onChange={e => setNewRosterMeta({ ...newRosterMeta, location: e.target.value })} className="w-full border rounded-lg px-3 py-2">
-                          <option>Combined</option>
-                          <option>Warsaw</option>
-                          <option>Gliwice</option>
-                          <option>Online</option>
-                        </select>
-                      </div>
-                    </div>
-                    <button type="submit" className="w-full bg-indigo-900 text-white py-2 rounded-xl font-semibold">
-                      Create Time-Slotted Roster
-                    </button>
-                  </form>
-                )}
-
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm">Scheduled Services</span>
-                    <button onClick={() => setActiveTab('workers_admin')} className="text-xs font-semibold text-indigo-700 hover:underline">
-                      Manage / Fix Names →
-                    </button>
-                  </div>
-                  {rosters.map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => setSelectedRosterId(r.id)}
-                      className={`w-full text-left p-3 rounded-xl border text-xs transition ${
-                        selectedRoster?.id === r.id ? 'bg-indigo-50 border-indigo-400' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className="font-bold text-slate-900">{r.serviceType}</div>
-                      <div className="text-slate-500 mt-0.5">{r.date} • {r.location}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Selected Roster Editor */}
-              {selectedRoster && (
-                <div className="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-                    <div>
-                      <h3 className="font-bold text-lg">{selectedRoster.serviceType}</h3>
-                      <p className="text-xs text-slate-500">{selectedRoster.date} • {selectedRoster.location} • Theme: {selectedRoster.theme}</p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const msg = `*DLBC Poland Roster (${selectedRoster.date} - ${selectedRoster.location})*\n${selectedRoster.serviceType}\n` +
-  selectedRoster.assignments.map(a => `• ${a.time} ${a.slot}: *${a.worker}*`).join('\n');
-                        navigator.clipboard?.writeText(msg);
-                        notify('WhatsApp/Email reminder copied to clipboard!');
-                      }}
-                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold"
-                    >
-                      <Copy className="w-3.5 h-3.5" /> Copy WhatsApp Reminder
-                    </button>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    {selectedRoster.assignments.map((slot, idx) => (
-                      <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200">
-                        <div>
-                          <div className="text-xs font-semibold text-indigo-700">{slot.time}</div>
-                          <div className="font-bold text-sm text-slate-900">{slot.slot}</div>
-                        </div>
-                        {canEditSchedules ? (
-                          <select
-                            value={slot.worker}
-                            onChange={e => handleUpdateSlotWorker(selectedRoster.id, idx, e.target.value)}
-                            className="border rounded-lg px-3 py-2 text-sm font-semibold bg-white min-w-[210px]"
-                          >
-                            <option value="Unassigned">-- Unassigned --</option>
-                            {activeWorkersList.map(w => (
-                              <option key={w.id} value={w.fullName}>{w.fullName} ({w.location})</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className="font-bold text-sm text-slate-800">{slot.worker}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 4: MEMBERS & WORKERS ADMIN BACKEND ================= */}
-        {activeTab === 'workers_admin' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column: Add Worker + Merge Duplicate Names */}
-              <div className="space-y-6">
-                {canEditSchedules && (
-                  <form onSubmit={handleAddWorker} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-3 text-sm">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-base">Add Worker / Member</h3>
-                      <button
-                        type="button"
-                        onClick={() => setBulkPasteOpen(!bulkPasteOpen)}
-                        className="text-xs font-semibold text-indigo-700 hover:underline"
-                      >
-                        {bulkPasteOpen ? 'Close Bulk Paste' : '+ Bulk Paste List'}
-                      </button>
-                    </div>
-
-                    {bulkPasteOpen ? (
-                      <div className="space-y-2">
-                        <textarea
-                          rows="5"
-                          placeholder={"Paste names (one per line):\nBro David\nSister Esther\nBro Samuel"}
-                          value={bulkText}
-                          onChange={e => setBulkText(e.target.value)}
-                          className="w-full border rounded-xl p-2.5 text-xs"
-                        />
-                        <button type="button" onClick={handleBulkPaste} className="w-full bg-indigo-900 text-white py-2 rounded-xl text-xs font-semibold">
-                          Import All Names
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-3 gap-2">
-                          <select value={newWorker.title} onChange={e => setNewWorker({ ...newWorker, title: e.target.value })} className="border rounded-lg px-2 py-2">
-                            <option>Pastor</option>
-                            <option>Bro</option>
-                            <option>Sis</option>
-                            <option>Mummy</option>
-                          </select>
-                          <input
-                            type="text"
-                            placeholder="Full Name (e.g. Bro Daniel)"
-                            value={newWorker.fullName}
-                            onChange={e => setNewWorker({ ...newWorker, fullName: e.target.value })}
-                            className="col-span-2 border rounded-lg px-3 py-2"
-                            required
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <select value={newWorker.location} onChange={e => setNewWorker({ ...newWorker, location: e.target.value })} className="border rounded-lg px-2 py-2">
-                            <option>Warsaw</option>
-                            <option>Gliwice</option>
-                            <option>Online</option>
-                          </select>
-                          <select value={newWorker.role} onChange={e => setNewWorker({ ...newWorker, role: e.target.value })} className="border rounded-lg px-2 py-2">
-                            <option value="member_readonly">Member</option>
-                            <option value="usher_entry">Usher / Data</option>
-                            <option value="location_admin">Location Admin</option>
-                            <option value="super_admin">Super Admin</option>
-                          </select>
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Ministry Units (e.g. Choir, STS, Prayers)"
-                          value={newWorker.units}
-                          onChange={e => setNewWorker({ ...newWorker, units: e.target.value })}
-                          className="w-full border rounded-lg px-3 py-2"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Spelling Aliases (comma separated)"
-                          value={newWorker.aliases}
-                          onChange={e => setNewWorker({ ...newWorker, aliases: e.target.value })}
-                          className="w-full border rounded-lg px-3 py-2"
-                        />
-                        <button type="submit" className="w-full bg-indigo-900 hover:bg-indigo-800 text-white py-2 rounded-xl font-semibold">
-                          + Save to Directory
-                        </button>
-                      </>
-                    )}
-                  </form>
-                )}
-
-                {/* Merge Duplicate / Misspelled Names Tool */}
-                {canEditSchedules && (
-                  <div className="bg-amber-50/80 border border-amber-200 p-5 rounded-2xl space-y-3 text-sm">
-                    <h3 className="font-bold text-base text-amber-950">Merge Duplicate Spellings</h3>
-                    <p className="text-xs text-amber-800">
-                      Combine a duplicate entry into the canonical worker name and automatically update every schedule across the platform.
-                    </p>
-                    <select value={mergeSourceId} onChange={e => setMergeSourceId(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white text-xs">
-                      <option value="">Select duplicate to remove...</option>
-                      {workers.map(w => <option key={w.id} value={w.id}>{w.fullName}</option>)}
-                    </select>
-                    <select value={mergeTargetId} onChange={e => setMergeTargetId(e.target.value)} className="w-full border rounded-lg px-3 py-2 bg-white text-xs">
-                      <option value="">Select official target name...</option>
-                      {workers.map(w => <option key={w.id} value={w.id}>{w.fullName}</option>)}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={handleMergeWorkers}
-                      className="w-full bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-xl font-semibold text-xs"
-                    >
-                      Merge & Fix Everywhere
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Right Column: Master Workers & Members Table */}
-              <div className="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h3 className="font-bold text-lg">Master Members & Workers Directory ({filteredWorkers.length})</h3>
-                    <p className="text-xs text-slate-500">Editing or deleting a worker safely updates linked schedules.</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="relative">
-                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                      <input
-                        type="text"
-                        placeholder="Search name or alias..."
-                        value={workerSearch}
-                        onChange={e => setWorkerSearch(e.target.value)}
-                        className="pl-9 pr-3 py-1.5 border rounded-xl text-xs"
-                      />
-                    </div>
-                    <select
-                      value={workerStatusFilter}
-                      onChange={e => setWorkerStatusFilter(e.target.value)}
-                      className="border rounded-xl px-2.5 py-1.5 text-xs bg-white"
-                    >
-                      <option value="All">All Statuses</option>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive (Archived)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b text-slate-500 uppercase">
-                        <th className="py-2.5">Canonical Name & Aliases</th>
-                        <th className="py-2.5">Campus</th>
-                        <th className="py-2.5">Units</th>
-                        <th className="py-2.5">Status</th>
-                        {canEditSchedules && <th className="py-2.5 text-right">Actions</th>}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {filteredWorkers.map(w => {
-                        const isEditing = editingWorkerId === w.id;
-                        return (
-                          <tr key={w.id} className={w.status === 'Inactive' ? 'bg-slate-50 opacity-70' : ''}>
-                            <td className="py-3 pr-2">
-                              {isEditing ? (
-                                <div className="space-y-1">
-                                  <input
-                                    type="text"
-                                    value={editWorkerDraft.fullName}
-                                    onChange={e => setEditWorkerDraft({ ...editWorkerDraft, fullName: e.target.value })}
-                                    className="border rounded px-2 py-1 font-bold w-full"
-                                  />
-                                  <input
-                                    type="text"
-                                    placeholder="Aliases (comma separated)"
-                                    value={Array.isArray(editWorkerDraft.aliases) ? editWorkerDraft.aliases.join(', ') : editWorkerDraft.aliases}
-                                    onChange={e => setEditWorkerDraft({ ...editWorkerDraft, aliases: e.target.value })}
-                                    className="border rounded px-2 py-1 text-xs w-full"
-                                  />
-                                </div>
-                              ) : (
-                                <>
-                                  <div className="font-bold text-sm text-slate-900">{w.fullName}</div>
-                                  {w.aliases.length > 0 && (
-                                    <div className="text-slate-400 mt-0.5">Aliases: {w.aliases.join(', ')}</div>
-                                  )}
-                                </>
-                              )}
-                            </td>
-                            <td className="py-3">
-                              {isEditing ? (
-                                <select
-                                  value={editWorkerDraft.location}
-                                  onChange={e => setEditWorkerDraft({ ...editWorkerDraft, location: e.target.value })}
-                                  className="border rounded px-2 py-1"
-                                >
-                                  <option>Warsaw</option>
-                                  <option>Gliwice</option>
-                                  <option>Online</option>
-                                </select>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-800 font-semibold">{w.location}</span>
-                              )}
-                            </td>
-                            <td className="py-3 text-slate-600">{w.units.join(', ')}</td>
-                            <td className="py-3">
-                              <button
-                                onClick={() => canEditSchedules && handleArchiveWorker(w)}
-                                className={`px-2 py-0.5 rounded-full font-semibold ${
-                                  w.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                                }`}
-                              >
-                                {w.status}
-                              </button>
-                            </td>
-                            {canEditSchedules && (
-                              <td className="py-3 text-right">
-                                {isEditing ? (
-                                  <div className="inline-flex gap-1">
-                                    <button onClick={handleSaveWorkerEdit} className="p-1.5 bg-emerald-600 text-white rounded-lg" title="Save">
-                                      <Check className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button onClick={() => setEditingWorkerId(null)} className="p-1.5 bg-slate-200 text-slate-700 rounded-lg" title="Cancel">
-                                      <X className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className="inline-flex gap-1.5">
-                                    <button
-                                      onClick={() => {
-                                        setEditingWorkerId(w.id);
-                                        setEditWorkerDraft({ ...w });
-                                      }}
-                                      className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg"
-                                      title="Edit Name / Aliases"
-                                    >
-                                      <Edit3 className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={() => setDeleteTargetWorker(w)}
-                                      className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg"
-                                      title="Delete or Archive Worker"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                )}
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 5: 2026 PLAN & NOTICEBOARD ================= */}
-        {activeTab === 'plans' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-              <h3 className="font-bold text-lg">2026 Operational Plan (Q1–Q4)</h3>
-              <div className="space-y-3">
-                {plans.map(p => (
-                  <div key={p.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 bg-indigo-900 text-white text-xs font-bold rounded">{p.quarter}</span>
-                        <span className="font-bold text-slate-900">{p.title}</span>
-                      </div>
-                      <div className="text-xs text-slate-600 mt-1">Date: {p.dateLabel} • Lead: <strong>{p.leader}</strong></div>
-                      <div className="text-xs text-slate-500 mt-0.5">Team: {p.team.join(', ')}</div>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold self-start ${
-                      p.status === 'Completed' ? 'bg-emerald-100 text-emerald-800' :
-                      p.status === 'In Progress' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                    }`}>{p.status}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-              <h3 className="font-bold text-lg">Church Noticeboard</h3>
-              {canEditSchedules && (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!noticeForm.title.trim()) return;
-                    setNotices([{ id: 'n' + Date.now(), ...noticeForm }, ...notices]);
-                    setNoticeForm({ ...noticeForm, title: '', body: '' });
-                    notify('Announcement published to noticeboard.');
-                  }}
-                  className="space-y-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs"
-                >
-                  <select value={noticeForm.category} onChange={e => setNoticeForm({ ...noticeForm, category: e.target.value })} className="w-full border rounded-lg px-2.5 py-2 bg-white">
-                    <option>Within-the-Week Program</option>
-                    <option>General Church Info</option>
-                    <option>Workers Notice</option>
-                  </select>
-                  <input
-                    type="text"
-                    placeholder="Announcement Title"
-                    value={noticeForm.title}
-                    onChange={e => setNoticeForm({ ...noticeForm, title: e.target.value })}
-                    className="w-full border rounded-lg px-2.5 py-2 bg-white"
-                    required
-                  />
-                  <textarea
-                    rows="3"
-                    placeholder="Details, time, Zoom link, or instructions..."
-                    value={noticeForm.body}
-                    onChange={e => setNoticeForm({ ...noticeForm, body: e.target.value })}
-                    className="w-full border rounded-lg px-2.5 py-2 bg-white"
-                    required
-                  />
-                  <button type="submit" className="w-full bg-indigo-900 text-white py-2 rounded-lg font-semibold">
-                    Post Update
-                  </button>
-                </form>
-              )}
-              <div className="space-y-3">
-                {notices.map(n => (
-                  <div key={n.id} className="p-3.5 rounded-xl border border-slate-200 text-xs">
-                    <div className="font-bold text-indigo-800">{n.category} • {n.location}</div>
-                    <div className="font-bold text-sm text-slate-900 mt-0.5">{n.title}</div>
-                    <p className="text-slate-600 mt-1">{n.body}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 6: ANALYTICS & GITHUB SETUP ================= */}
-        {activeTab === 'analytics' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-              <h3 className="font-bold text-lg">Sunday Average Attendance Trend (2023–2026)</h3>
-              <div className="space-y-3">
-                {[
-                  { period: '2023 H2', avg: 17.2, pct: 43 },
-                  { period: '2024 Full Year', avg: 15.6, pct: 39 },
-                  { period: '2025 H1', avg: 20.1, pct: 50 },
-                  { period: '2025 H2', avg: 23.6, pct: 59 },
-                  { period: '2026 YTD (+48% vs 2023)', avg: 25.5, pct: 64 }
-                ].map(item => (
-                  <div key={item.period} className="space-y-1">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span>{item.period}</span>
-                      <span className="text-indigo-900">{item.avg} avg</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                      <div className="bg-indigo-700 h-full rounded-full" style={{ width: `${item.pct}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-slate-900 text-slate-100 p-5 rounded-2xl shadow-sm space-y-3 text-xs">
-              <h3 className="font-bold text-base text-amber-300">GitHub Pages + Supabase Architecture</h3>
-              <p className="text-slate-300">
-                This repository includes <code>.github/workflows/deploy.yml</code> for automatic static deployment on GitHub Pages and <code>supabase/schema.sql</code> for live multi-user PostgreSQL storage.
-              </p>
-              <div className="bg-slate-950 p-3 rounded-xl font-mono text-[11px] text-emerald-300 overflow-x-auto">
-                1. Push this folder to a Public GitHub repo<br />
-                2. Settings → Pages → Source: GitHub Actions<br />
-                3. Live at: https://&lt;username&gt;.github.io/dlbc-poland-portal/
-              </div>
-            </div>
           </div>
         )}
       </main>
-
-      {/* Safe Delete / Archive Confirmation Modal */}
-      {deleteTargetWorker && (() => {
-        const stats = getWorkerUsageStats(deleteTargetWorker.fullName);
-        return (
-          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
-              <div className="flex items-center gap-3 text-rose-600">
-                <AlertTriangle className="w-6 h-6" />
-                <h3 className="font-bold text-lg text-slate-900">Remove {deleteTargetWorker.fullName}?</h3>
-              </div>
-              <p className="text-sm text-slate-600">
-                This worker is currently referenced in <strong>{stats.rosterCount}</strong> ministering slot(s), <strong>{stats.planCount}</strong> annual plan team(s), and <strong>{stats.visitorCount}</strong> visitor log(s).
-              </p>
-              <div className="bg-slate-50 p-3 rounded-xl text-xs text-slate-600 space-y-1 border">
-                <div>• <strong>Archive (Recommended):</strong> Hides them from future dropdowns while keeping past history intact.</div>
-                <div>• <strong>Delete Permanently:</strong> Removes them from the directory and sets active roster slots to <em>Unassigned</em>.</div>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                <button
-                  onClick={() => handleArchiveWorker(deleteTargetWorker)}
-                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-xl text-xs font-bold"
-                >
-                  Archive Instead
-                </button>
-                <button
-                  onClick={handleConfirmPermanentDelete}
-                  className="flex-1 bg-rose-600 hover:bg-rose-700 text-white py-2 rounded-xl text-xs font-bold"
-                >
-                  Delete Permanently
-                </button>
-                <button
-                  onClick={() => setDeleteTargetWorker(null)}
-                  className="px-4 py-2 border rounded-xl text-xs font-semibold text-slate-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
