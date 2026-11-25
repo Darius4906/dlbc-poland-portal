@@ -315,8 +315,7 @@ export default function App() {
   };
 
   const handleBulkPaste = () => {
-    const lines = bulkText.split('
-').map(l => l.trim()).filter(Boolean);
+ const lines = bulkText.split('\n').map(l => l.trim()).filter(Boolean);
     let addedCount = 0;
     const nextWorkers = [...workers];
     lines.forEach((line, idx) => {
@@ -883,11 +882,8 @@ export default function App() {
                     </div>
                     <button
                       onClick={() => {
-                        const msg = `*DLBC Poland Roster (${selectedRoster.date} - ${selectedRoster.location})*
-${selectedRoster.serviceType}
-` +
-                          selectedRoster.assignments.map(a => `• ${a.time} ${a.slot}: *${a.worker}*`).join('
-');
+                        const msg = `*DLBC Poland Roster (${selectedRoster.date} - ${selectedRoster.location})*\n${selectedRoster.serviceType}\n` +
+  selectedRoster.assignments.map(a => `• ${a.time} ${a.slot}: *${a.worker}*`).join('\n');
                         navigator.clipboard?.writeText(msg);
                         notify('WhatsApp/Email reminder copied to clipboard!');
                       }}
@@ -950,10 +946,7 @@ ${selectedRoster.serviceType}
                       <div className="space-y-2">
                         <textarea
                           rows="5"
-                          placeholder={"Paste names (one per line):
-Bro David
-Sister Esther
-Bro Samuel"}
+                          placeholder={"Paste names (one per line):\nBro David\nSister Esther\nBro Samuel"}
                           value={bulkText}
                           onChange={e => setBulkText(e.target.value)}
                           className="w-full border rounded-xl p-2.5 text-xs"
