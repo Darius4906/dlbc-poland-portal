@@ -31,30 +31,7 @@ const INITIAL_PEOPLE = [
   { id: 'm6', category: 'Member', title: 'Sister', fullName: 'Sister Faith Adeyemi', phone: '+48 501 200 106', address: 'ul. Solec 44/10, Warsaw', emergencyName: 'Sister Esther', emergencyPhone: '+48 500 100 004', location: 'Warsaw', accessRole: 'member', units: ['General Congregation'], joinDate: '2025-08-24', status: 'Active' }
 ];
 
-const INITIAL_ATTENDANCE = [
-  // Historical Multi-Year & Service Comparison Data (Sunday vs Koinonia vs Bible Study vs Revival)
-  { id: 'a1', date: '2023-10-15', period: '2023 H2', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 14, youths: 3, children: 2, visitors: 1, offeringPln: 420, recordedBy: 'Pastor Dare' },
-  { id: 'a2', date: '2023-10-18', period: '2023 H2', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 9, youths: 2, children: 0, visitors: 0, offeringPln: 0, recordedBy: 'Bro David' },
-  { id: 'a3', date: '2024-04-14', period: '2024 H1', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 13, youths: 2, children: 2, visitors: 1, offeringPln: 390, recordedBy: 'Bro Pelumi' },
-  { id: 'a4', date: '2024-04-17', period: '2024 H1', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 8, youths: 2, children: 0, visitors: 0, offeringPln: 0, recordedBy: 'Bro Pelumi' },
-  { id: 'a5', date: '2024-10-20', period: '2024 H2', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 14, youths: 3, children: 1, visitors: 2, offeringPln: 460, recordedBy: 'Bro Pelumi' },
-  { id: 'a6', date: '2024-10-23', period: '2024 H2', location: 'Warsaw', serviceType: 'Bible Study', adults: 10, youths: 2, children: 0, visitors: 0, offeringPln: 120, recordedBy: 'Bro David' },
-  { id: 'a7', date: '2025-04-13', period: '2025 H1', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 17, youths: 3, children: 2, visitors: 2, offeringPln: 580, recordedBy: 'Bro Pelumi' },
-  { id: 'a8', date: '2025-04-16', period: '2025 H1', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 12, youths: 3, children: 0, visitors: 1, offeringPln: 0, recordedBy: 'Bro Pelumi' },
-  { id: 'a9', date: '2025-10-19', period: '2025 H2', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 19, youths: 4, children: 3, visitors: 2, offeringPln: 690, recordedBy: 'Bro Pelumi' },
-  { id: 'a10', date: '2025-10-22', period: '2025 H2', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 14, youths: 3, children: 0, visitors: 1, offeringPln: 0, recordedBy: 'Bro Pelumi' },
-  { id: 'a11', date: '2026-10-04', period: '2026 Q4', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 21, youths: 4, children: 3, visitors: 3, offeringPln: 780, recordedBy: 'Bro Pelumi' },
-  { id: 'a12', date: '2026-10-07', period: '2026 Q4', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 16, youths: 3, children: 0, visitors: 2, offeringPln: 0, recordedBy: 'Bro Pelumi' },
-  { id: 'a13', date: '2026-10-08', period: '2026 Q4', location: 'Warsaw', serviceType: 'Bible Study', adults: 15, youths: 3, children: 0, visitors: 1, offeringPln: 210, recordedBy: 'Bro David' },
-  { id: 'a14', date: '2026-10-09', period: '2026 Q4', location: 'Warsaw', serviceType: 'Revival / Evangelism', adults: 14, youths: 4, children: 0, visitors: 2, offeringPln: 190, recordedBy: 'Bro Pelumi' },
-  { id: 'a15', date: '2026-11-01', period: '2026 Q4', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 22, youths: 5, children: 3, visitors: 2, offeringPln: 840, recordedBy: 'Bro Pelumi' },
-  { id: 'a16', date: '2026-11-04', period: '2026 Q4', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 18, youths: 4, children: 0, visitors: 2, offeringPln: 0, recordedBy: 'Bro Pelumi' },
-  { id: 'a17', date: '2026-11-08', period: '2026 Q4', location: 'Wrocław', serviceType: 'Sunday Worship', adults: 11, youths: 3, children: 1, visitors: 1, offeringPln: 410, recordedBy: 'Bro Joshua' },
-  { id: 'a18', date: '2026-11-11', period: '2026 Q4', location: 'Wrocław', serviceType: 'Koinonia / Home Caring', adults: 8, youths: 2, children: 0, visitors: 0, offeringPln: 0, recordedBy: 'Bro Joshua' },
-  { id: 'a19', date: '2026-11-15', period: '2026 Q4', location: 'Poznań', serviceType: 'Sunday Worship', adults: 9, youths: 4, children: 0, visitors: 2, offeringPln: 340, recordedBy: 'Bro Caleb' },
-  { id: 'a20', date: '2026-11-22', period: '2026 Q4', location: 'Warsaw', serviceType: 'Sunday Worship', adults: 23, youths: 5, children: 3, visitors: 3, offeringPln: 910, recordedBy: 'Bro Pelumi' },
-  { id: 'a21', date: '2026-11-25', period: '2026 Q4', location: 'Warsaw', serviceType: 'Koinonia / Home Caring', adults: 19, youths: 4, children: 0, visitors: 2, offeringPln: 0, recordedBy: 'Bro Pelumi' }
-];
+const INITIAL_ATTENDANCE = [];
 
 const INITIAL_NEWCOMERS = [
   { id: 'nc1', fullName: 'Chinedu Eze', phone: '+48 512 334 101', location: 'Warsaw', visitDate: '2026-11-22', invitedBy: 'Bro Pelumi', assignedFollowUp: 'Sister Esther', status: 'First-Timer', notes: 'Student at Warsaw Univ of Technology', archived: false },
@@ -158,7 +135,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_PEOPLE;
   });
   const [attendance, setAttendance] = useState(() => {
-    const saved = localStorage.getItem('dlbc_attendance_v2');
+    const saved = localStorage.getItem('dlbc_attendance_v3');
     return saved ? JSON.parse(saved) : INITIAL_ATTENDANCE;
   });
   const [newcomers, setNewcomers] = useState(() => {
@@ -175,7 +152,7 @@ export default function App() {
   });
 
   useEffect(() => { localStorage.setItem('dlbc_people_v2', JSON.stringify(people)); }, [people]);
-  useEffect(() => { localStorage.setItem('dlbc_attendance_v2', JSON.stringify(attendance)); }, [attendance]);
+  useEffect(() => { localStorage.setItem('dlbc_attendance_v3', JSON.stringify(attendance)); }, [attendance]);
   useEffect(() => { localStorage.setItem('dlbc_newcomers_v2', JSON.stringify(newcomers)); }, [newcomers]);
   useEffect(() => { localStorage.setItem('dlbc_plans_v2', JSON.stringify(plansByYear)); }, [plansByYear]);
   useEffect(() => { localStorage.setItem('dlbc_rosters_v2', JSON.stringify(rosters)); }, [rosters]);
@@ -217,44 +194,136 @@ export default function App() {
   // ANALYTICS COMPUTATIONS (GROWTH TREND & SUNDAY VS KOINONIA / OTHER DAYS)
   // ==========================================================================
   const [analyticsLocation, setAnalyticsLocation] = useState('All Locations');
+  const [analyticsChartType, setAnalyticsChartType] = useState('trend'); // 'trend' | 'histogram' | 'service_compare' | 'demographics' | 'location_split'
+  const [analyticsServiceFilter, setAnalyticsServiceFilter] = useState('All Services');
+  const [analyticsMetric, setAnalyticsMetric] = useState('total'); // 'total' | 'adults' | 'youths' | 'children' | 'offeringPln'
+
+  const getMetricValue = (rec, metricKey) => {
+    if (metricKey === 'adults') return Number(rec.adults) || 0;
+    if (metricKey === 'youths') return Number(rec.youths) || 0;
+    if (metricKey === 'children') return Number(rec.children) || 0;
+    if (metricKey === 'offeringPln') return Number(rec.offeringPln) || 0;
+    return (Number(rec.adults) || 0) + (Number(rec.youths) || 0) + (Number(rec.children) || 0);
+  };
 
   const filteredAttendance = useMemo(() => {
-    return analyticsLocation === 'All Locations'
+    return attendance.filter(a => {
+      const locMatch = analyticsLocation === 'All Locations' || a.location === analyticsLocation;
+      const svcMatch = analyticsServiceFilter === 'All Services' || a.serviceType === analyticsServiceFilter;
+      return locMatch && svcMatch;
+    });
+  }, [attendance, analyticsLocation, analyticsServiceFilter]);
+
+  // 1. Chronological Trend (sorted by date, showing every logged session or period)
+  const chronologicalTrendData = useMemo(() => {
+    const sorted = [...filteredAttendance].sort((a, b) => a.date.localeCompare(b.date));
+    return sorted.map(rec => ({
+      id: rec.id,
+      label: `${rec.date} (${rec.location})`,
+      shortDate: rec.date,
+      serviceType: rec.serviceType,
+      value: getMetricValue(rec, analyticsMetric)
+    }));
+  }, [filteredAttendance, analyticsMetric]);
+
+  // 2. Histogram Distribution (Frequency Buckets of Attendance Size or Offering)
+  const histogramData = useMemo(() => {
+    if (filteredAttendance.length === 0) return [];
+    const values = filteredAttendance.map(r => getMetricValue(r, analyticsMetric));
+    const isOffering = analyticsMetric === 'offeringPln';
+    const bins = isOffering
+      ? [
+          { label: '0 – 250 PLN', min: 0, max: 250, count: 0 },
+          { label: '251 – 500 PLN', min: 251, max: 500, count: 0 },
+          { label: '501 – 800 PLN', min: 501, max: 800, count: 0 },
+          { label: '801+ PLN', min: 801, max: Infinity, count: 0 }
+        ]
+      : [
+          { label: '1 – 10', min: 1, max: 10, count: 0 },
+          { label: '11 – 20', min: 11, max: 20, count: 0 },
+          { label: '21 – 30', min: 21, max: 30, count: 0 },
+          { label: '31 – 45', min: 31, max: 45, count: 0 },
+          { label: '46+', min: 46, max: Infinity, count: 0 }
+        ];
+
+    values.forEach(v => {
+      const bin = bins.find(b => v >= b.min && v <= b.max);
+      if (bin) bin.count += 1;
+    });
+    return bins;
+  }, [filteredAttendance, analyticsMetric]);
+
+  // 3. Service Day Comparison (Sunday Worship vs Koinonia vs Bible Study vs Revival)
+  const serviceComparisonData = useMemo(() => {
+    const locFiltered = analyticsLocation === 'All Locations'
       ? attendance
       : attendance.filter(a => a.location === analyticsLocation);
-  }, [attendance, analyticsLocation]);
 
-  // 1. Multi-Year Growth Trend (Sunday Worship Average by Period)
-  const growthTrendData = useMemo(() => {
-    const periods = ['2023 H2', '2024 H1', '2024 H2', '2025 H1', '2025 H2', '2026 Q4'];
-    return periods.map(p => {
-      const records = filteredAttendance.filter(a => a.period === p && a.serviceType === 'Sunday Worship');
-      if (records.length === 0) return { label: p, avg: 0, count: 0 };
-      const sum = records.reduce((acc, r) => acc + r.adults + r.youths + r.children, 0);
-      return { label: p, avg: +(sum / records.length).toFixed(1), count: records.length };
-    });
-  }, [filteredAttendance]);
-
-  // 2. Service Day Comparison (Sunday Worship vs Koinonia vs Bible Study vs Revival)
-  const serviceComparisonData = useMemo(() => {
     const types = ['Sunday Worship', 'Koinonia / Home Caring', 'Bible Study', 'Revival / Evangelism'];
-    const sundayRecords = filteredAttendance.filter(a => a.serviceType === 'Sunday Worship');
+    const sundayRecords = locFiltered.filter(a => a.serviceType === 'Sunday Worship');
     const sundayAvg = sundayRecords.length
-      ? sundayRecords.reduce((s, r) => s + r.adults + r.youths + r.children, 0) / sundayRecords.length
-      : 1;
+      ? sundayRecords.reduce((s, r) => s + getMetricValue(r, analyticsMetric), 0) / sundayRecords.length
+      : 0;
 
     return types.map(type => {
-      const recs = filteredAttendance.filter(a => a.serviceType === type);
-      const totalSum = recs.reduce((s, r) => s + r.adults + r.youths + r.children, 0);
+      const recs = locFiltered.filter(a => a.serviceType === type);
+      const totalSum = recs.reduce((s, r) => s + getMetricValue(r, analyticsMetric), 0);
       const avg = recs.length ? +(totalSum / recs.length).toFixed(1) : 0;
       const retentionPct = sundayAvg > 0 ? Math.round((avg / sundayAvg) * 100) : 0;
       return { type, avg, sessions: recs.length, retentionPct };
     });
+  }, [attendance, analyticsLocation, analyticsMetric]);
+
+  // 4. Demographic Breakdown (Adults vs Youths vs Children)
+  const demographicSummary = useMemo(() => {
+    const totals = filteredAttendance.reduce(
+      (acc, r) => {
+        acc.adults += Number(r.adults) || 0;
+        acc.youths += Number(r.youths) || 0;
+        acc.children += Number(r.children) || 0;
+        return acc;
+      },
+      { adults: 0, youths: 0, children: 0 }
+    );
+    const grand = totals.adults + totals.youths + totals.children;
+    return {
+      ...totals,
+      grand,
+      adultsPct: grand ? Math.round((totals.adults / grand) * 100) : 0,
+      youthsPct: grand ? Math.round((totals.youths / grand) * 100) : 0,
+      childrenPct: grand ? Math.round((totals.children / grand) * 100) : 0
+    };
   }, [filteredAttendance]);
 
-  const latestSundayAvg = growthTrendData[growthTrendData.length - 1]?.avg || 0;
-  const baselineSundayAvg = growthTrendData[0]?.avg || 1;
-  const overallGrowthPct = Math.round(((latestSundayAvg - baselineSundayAvg) / baselineSundayAvg) * 100);
+  // 5. Location Breakdown (Warsaw, Wrocław, Poznań, Kraków)
+  const locationBreakdownData = useMemo(() => {
+    const locs = ['Warsaw', 'Wrocław', 'Poznań', 'Kraków'];
+    const svcFiltered = analyticsServiceFilter === 'All Services'
+      ? attendance
+      : attendance.filter(a => a.serviceType === analyticsServiceFilter);
+
+    return locs.map(loc => {
+      const recs = svcFiltered.filter(a => a.location === loc);
+      const sum = recs.reduce((s, r) => s + getMetricValue(r, analyticsMetric), 0);
+      const avg = recs.length ? +(sum / recs.length).toFixed(1) : 0;
+      return { location: loc, sessions: recs.length, avg, total: sum };
+    });
+  }, [attendance, analyticsServiceFilter, analyticsMetric]);
+
+  // Summary KPIs for Top Banner & Analytics
+  const sundayAll = attendance.filter(a => a.serviceType === 'Sunday Worship').sort((a, b) => a.date.localeCompare(b.date));
+  const latestSundayAvg = sundayAll.length
+    ? +(sundayAll.reduce((s, r) => s + r.adults + r.youths + r.children, 0) / sundayAll.length).toFixed(1)
+    : 0;
+  const firstVal = chronologicalTrendData.length ? chronologicalTrendData[0].value : 0;
+  const lastVal = chronologicalTrendData.length ? chronologicalTrendData[chronologicalTrendData.length - 1].value : 0;
+  const overallGrowthPct = firstVal > 0 ? Math.round(((lastVal - firstVal) / firstVal) * 100) : 0;
+  const avgSelectedMetric = filteredAttendance.length
+    ? +(filteredAttendance.reduce((s, r) => s + getMetricValue(r, analyticsMetric), 0) / filteredAttendance.length).toFixed(1)
+    : 0;
+  const peakSelectedMetric = filteredAttendance.length
+    ? Math.max(...filteredAttendance.map(r => getMetricValue(r, analyticsMetric)))
+    : 0;
 
   // ==========================================================================
   // NEWCOMERS STATE & FILTERS (MONTH / QUARTER / ARCHIVED)
@@ -486,32 +555,209 @@ export default function App() {
   // ATTENDANCE ENTRY STATE
   // ==========================================================================
   const [attForm, setAttForm] = useState({
-    date: '2026-11-29',
+    date: new Date().toISOString().slice(0, 10),
     location: 'Warsaw',
     serviceType: 'Sunday Worship',
-    adults: 22,
-    youths: 5,
-    children: 3,
-    visitors: 2,
-    offeringPln: 0
+    adults: '',
+    youths: '',
+    children: '',
+    visitors: '',
+    offeringPln: '',
+    recordedBy: localStorage.getItem('dlbc_viewer_name') || ''
   });
 
   const handleAddAttendance = (e) => {
     e.preventDefault();
     const qStr = getQuarterString(attForm.date);
+    const recorder = attForm.recordedBy.trim() || viewerName.trim() || 'Authorized Worker';
     const entry = {
       id: 'att-' + Date.now(),
-      ...attForm,
+      date: attForm.date,
+      location: attForm.location,
+      serviceType: attForm.serviceType,
       period: qStr,
-      adults: Number(attForm.adults),
-      youths: Number(attForm.youths),
-      children: Number(attForm.children),
-      visitors: Number(attForm.visitors),
-      offeringPln: Number(attForm.offeringPln),
-      recordedBy: viewerName.trim() || (isHeadPastor ? 'Pastor Dare' : 'Authorized Usher')
+      adults: Number(attForm.adults) || 0,
+      youths: Number(attForm.youths) || 0,
+      children: Number(attForm.children) || 0,
+      visitors: Number(attForm.visitors) || 0,
+      offeringPln: Number(attForm.offeringPln) || 0,
+      recordedBy: recorder
     };
     setAttendance([entry, ...attendance]);
+    setAttForm({
+      ...attForm,
+      adults: '',
+      youths: '',
+      children: '',
+      visitors: '',
+      offeringPln: '',
+      recordedBy: recorder
+    });
   };
+
+  const handleDeleteAttendance = (id) => {
+    setAttendance(attendance.filter(a => a.id !== id));
+  };
+
+  // ==========================================================================
+  // FLEXIBLE MINISTERING ROSTERS (CREATE, EDIT, FILTER BY SERVICE & LOCATION)
+  // ==========================================================================
+  const SERVICE_ROSTER_TEMPLATES = {
+    'Sunday Worship Service': [
+      { time: '09:30', slot: 'Opening Prayer & Moderation', worker: 'Bro David' },
+      { time: '09:45', slot: 'Search The Scriptures (STS)', worker: 'Bro Pelumi' },
+      { time: '10:30', slot: 'Choir Ministration', worker: 'Sister Esther' },
+      { time: '10:50', slot: 'Sermon / Word Ministration', worker: 'Pastor Dare' },
+      { time: '11:45', slot: 'Ushering & Newcomer Welcome', worker: 'Bro Emmanuel' }
+    ],
+    'Prayer Meeting / Vigil': [
+      { time: '18:30', slot: 'Opening Hymns & Worship', worker: 'Sister Esther' },
+      { time: '18:45', slot: 'Exhortation & Prayer Points', worker: 'Pastor Dare' },
+      { time: '19:15', slot: 'Intercessory Prayer Session', worker: 'Bro Emmanuel' },
+      { time: '19:50', slot: 'Closing Benediction', worker: 'Bro David' }
+    ],
+    'Special Program / Crusade / Retreat': [
+      { time: '17:00', slot: 'Protocol, Ushering & Welcome', worker: 'Bro Pelumi' },
+      { time: '17:15', slot: 'Congregational Praise & Choir', worker: 'Sister Esther' },
+      { time: '17:45', slot: 'Special Testimonies & Moderation', worker: 'Bro David' },
+      { time: '18:05', slot: 'Main Revival Message & Altar Call', worker: 'Pastor Dare' },
+      { time: '19:15', slot: 'Counseling & New Convert Follow-Up', worker: 'Sister Deborah' }
+    ],
+    'Midweek Koinonia / Bible Study': [
+      { time: '18:30', slot: 'Praise & Worship', worker: 'Sister Esther' },
+      { time: '18:50', slot: 'Bible Outline & Discussion', worker: 'Bro Pelumi' },
+      { time: '19:30', slot: 'Intercessory Prayer', worker: 'Bro Emmanuel' }
+    ],
+    'Custom Service / Event': [
+      { time: '18:00', slot: 'Opening & Moderation', worker: '' },
+      { time: '18:30', slot: 'Main Ministration', worker: '' }
+    ]
+  };
+
+  const [rosterLocationFilter, setRosterLocationFilter] = useState('All Locations');
+  const [rosterServiceFilter, setRosterServiceFilter] = useState('All Services');
+  const [showRosterBuilder, setShowRosterBuilder] = useState(false);
+  const [editingRosterId, setEditingRosterId] = useState(null);
+  const [rosterDraft, setRosterDraft] = useState({
+    date: new Date().toISOString().slice(0, 10),
+    location: 'Warsaw',
+    serviceCategory: 'Sunday Worship Service',
+    customServiceTitle: '',
+    assignments: SERVICE_ROSTER_TEMPLATES['Sunday Worship Service'].map(a => ({ ...a }))
+  });
+
+  const openNewRosterBuilder = (presetCategory = 'Sunday Worship Service') => {
+    setEditingRosterId(null);
+    setRosterDraft({
+      date: new Date().toISOString().slice(0, 10),
+      location: 'Warsaw',
+      serviceCategory: presetCategory,
+      customServiceTitle: '',
+      assignments: (SERVICE_ROSTER_TEMPLATES[presetCategory] || SERVICE_ROSTER_TEMPLATES['Custom Service / Event']).map(a => ({ ...a }))
+    });
+    setShowRosterBuilder(true);
+  };
+
+  const openEditRosterBuilder = (roster) => {
+    setEditingRosterId(roster.id);
+    const knownCategories = Object.keys(SERVICE_ROSTER_TEMPLATES);
+    const isKnown = knownCategories.includes(roster.serviceType);
+    setRosterDraft({
+      date: roster.date,
+      location: roster.location,
+      serviceCategory: isKnown ? roster.serviceType : 'Custom Service / Event',
+      customServiceTitle: isKnown ? '' : roster.serviceType,
+      assignments: roster.assignments.map(a => ({ ...a }))
+    });
+    setShowRosterBuilder(true);
+  };
+
+  const handleRosterCategoryChange = (newCat) => {
+    const template = SERVICE_ROSTER_TEMPLATES[newCat] || SERVICE_ROSTER_TEMPLATES['Custom Service / Event'];
+    setRosterDraft(prev => ({
+      ...prev,
+      serviceCategory: newCat,
+      assignments: template.map(a => ({ ...a }))
+    }));
+  };
+
+  const handleDraftSlotChange = (index, field, value) => {
+    setRosterDraft(prev => {
+      const updated = prev.assignments.map((item, idx) =>
+        idx === index ? { ...item, [field]: value } : item
+      );
+      return { ...prev, assignments: updated };
+    });
+  };
+
+  const handleAddDraftSlot = () => {
+    setRosterDraft(prev => ({
+      ...prev,
+      assignments: [...prev.assignments, { time: '19:00', slot: '', worker: '' }]
+    }));
+  };
+
+  const handleRemoveDraftSlot = (index) => {
+    setRosterDraft(prev => ({
+      ...prev,
+      assignments: prev.assignments.filter((_, idx) => idx !== index)
+    }));
+  };
+
+  const handleSaveRoster = (e) => {
+    e.preventDefault();
+    const finalServiceTitle =
+      rosterDraft.serviceCategory === 'Custom Service / Event'
+        ? (rosterDraft.customServiceTitle.trim() || 'Special Church Service')
+        : rosterDraft.customServiceTitle.trim()
+        ? `${rosterDraft.serviceCategory}: ${rosterDraft.customServiceTitle.trim()}`
+        : rosterDraft.serviceCategory;
+
+    const cleanAssignments = rosterDraft.assignments
+      .filter(a => a.slot.trim() || a.worker.trim())
+      .map(a => ({
+        time: a.time.trim() || '—',
+        slot: a.slot.trim() || 'Duty Assignment',
+        worker: a.worker.trim() || 'Unassigned'
+      }));
+
+    if (editingRosterId) {
+      setRosters(rosters.map(r => r.id === editingRosterId ? {
+        ...r,
+        date: rosterDraft.date,
+        location: rosterDraft.location,
+        serviceType: finalServiceTitle,
+        assignments: cleanAssignments
+      } : r));
+    } else {
+      const created = {
+        id: 'r-' + Date.now(),
+        date: rosterDraft.date,
+        location: rosterDraft.location,
+        serviceType: finalServiceTitle,
+        assignments: cleanAssignments
+      };
+      setRosters([created, ...rosters]);
+    }
+    setShowRosterBuilder(false);
+    setEditingRosterId(null);
+  };
+
+  const handleDeleteRoster = (id) => {
+    setRosters(rosters.filter(r => r.id !== id));
+  };
+
+  const filteredRosters = useMemo(() => {
+    return rosters
+      .filter(r => {
+        const locOk = rosterLocationFilter === 'All Locations' || r.location === rosterLocationFilter;
+        const svcOk =
+          rosterServiceFilter === 'All Services' ||
+          r.serviceType.toLowerCase().includes(rosterServiceFilter.toLowerCase());
+        return locOk && svcOk;
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [rosters, rosterLocationFilter, rosterServiceFilter]);
 
   // ==========================================================================
   // EXPORT CSV HELPER (HEAD PASTOR / FULL ACCESS ONLY)
@@ -911,54 +1157,294 @@ export default function App() {
         )}
 
         {/* ==================================================================== */}
-        {/* TAB 2: MINISTERING ROSTERS (PUBLIC VIEW + ADMIN EDIT)                */}
+        {/* TAB 2: MINISTERING ROSTERS (FLEXIBLE SERVICE TYPES & EDITABLE SLOTS) */}
         {/* ==================================================================== */}
         {activeTab === 'rosters' && (
-          <div className="space-y-4">
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="space-y-5">
+            {/* HEADER & FILTER BAR */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">Ministering & Duty Rosters</h3>
-                  <p className="text-xs text-slate-500">Assigned workers for Sunday Worship, Koinonia, and Revival services</p>
+                  <h3 className="font-bold text-slate-900 text-base">Flexible Ministering & Duty Rosters</h3>
+                  <p className="text-xs text-slate-500">
+                    Create and customize schedules for Sunday Worship, Prayer Meetings / Vigils, Special Programs, Crusades, or Koinonia
+                  </p>
                 </div>
+
+                {isFullAdmin && (
+                  <button
+                    onClick={() => openNewRosterBuilder('Sunday Worship Service')}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-xl shadow-sm transition"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create New Roster
+                  </button>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {rosters.map(r => (
-                  <div key={r.id} className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold">{r.location}</span>
-                        <h4 className="font-bold text-slate-900 text-sm mt-1">{r.serviceType}</h4>
-                        <p className="text-xs text-slate-500">{r.date}</p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const txt = `*DLBC Poland Roster (${r.date} - ${r.location})*\n${r.serviceType}\n` +
-                            r.assignments.map(a => `• ${a.time} ${a.slot}: *${a.worker}*`).join('\n');
-                          navigator.clipboard?.writeText(txt);
-                          alert('Roster copied for WhatsApp!');
-                        }}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg"
+              {/* FILTER CONTROLS BY SERVICE TYPE & LOCATION */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-3 border-t border-slate-100">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Filter by Service Type</label>
+                  <select
+                    value={rosterServiceFilter}
+                    onChange={(e) => setRosterServiceFilter(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50"
+                  >
+                    <option value="All Services">All Services & Programs</option>
+                    <option value="Sunday">Sunday Worship Service</option>
+                    <option value="Prayer">Prayer Meeting / Vigil</option>
+                    <option value="Special">Special Program / Crusade / Retreat</option>
+                    <option value="Koinonia">Midweek Koinonia / Bible Study</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Filter by Location</label>
+                  <select
+                    value={rosterLocationFilter}
+                    onChange={(e) => setRosterLocationFilter(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50"
+                  >
+                    <option value="All Locations">All Locations (Poland)</option>
+                    <option value="Warsaw">Warsaw</option>
+                    <option value="Wrocław">Wrocław</option>
+                    <option value="Poznań">Poznań</option>
+                    <option value="Kraków">Kraków</option>
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 w-full">
+                    Showing <strong className="text-slate-900">{filteredRosters.length}</strong> roster(s)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* FLEXIBLE ROSTER BUILDER / EDITOR PANEL (ADMIN ONLY) */}
+            {isFullAdmin && showRosterBuilder && (
+              <div className="bg-white border-2 border-amber-400 rounded-2xl p-5 shadow-md space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">
+                      {editingRosterId ? 'Edit Ministering Roster' : 'Build Flexible Service / Program Roster'}
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Pick a service preset (Sunday, Prayer, Special Program) or type any custom program title and edit the duty rows below
+                    </p>
+                  </div>
+                  <button onClick={() => setShowRosterBuilder(false)} className="text-slate-400 hover:text-slate-600">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveRoster} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Service / Program Type</label>
+                      <select
+                        value={rosterDraft.serviceCategory}
+                        onChange={(e) => handleRosterCategoryChange(e.target.value)}
+                        className="w-full px-3 py-2 text-xs font-bold border border-slate-300 rounded-lg bg-amber-50"
                       >
-                        Copy WhatsApp
+                        <option value="Sunday Worship Service">Sunday Worship Service</option>
+                        <option value="Prayer Meeting / Vigil">Prayer Meeting / Vigil</option>
+                        <option value="Special Program / Crusade / Retreat">Special Program / Crusade / Retreat</option>
+                        <option value="Midweek Koinonia / Bible Study">Midweek Koinonia / Bible Study</option>
+                        <option value="Custom Service / Event">Custom Service / Event</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Program Subtitle / Custom Name <span className="text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Night of Power, Easter Retreat..."
+                        value={rosterDraft.customServiceTitle}
+                        onChange={(e) => setRosterDraft({ ...rosterDraft, customServiceTitle: e.target.value })}
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={rosterDraft.date}
+                        onChange={(e) => setRosterDraft({ ...rosterDraft, date: e.target.value })}
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
+                      <select
+                        value={rosterDraft.location}
+                        onChange={(e) => setRosterDraft({ ...rosterDraft, location: e.target.value })}
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg"
+                      >
+                        <option>Warsaw</option>
+                        <option>Wrocław</option>
+                        <option>Poznań</option>
+                        <option>Kraków</option>
+                        <option>All Poland (Combined)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* DYNAMIC ASSIGNMENT ROWS (ADD, EDIT, REMOVE ANY DUTY SLOT) */}
+                  <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-slate-800">Program Line-Up & Assigned Ministers / Workers</span>
+                      <button
+                        type="button"
+                        onClick={handleAddDraftSlot}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add Program Slot
                       </button>
                     </div>
-                    <div className="divide-y divide-slate-200 bg-white rounded-lg border border-slate-200 px-3">
-                      {r.assignments.map((a, i) => (
-                        <div key={i} className="py-2 flex items-center justify-between text-xs">
-                          <div>
-                            <span className="font-mono text-slate-400 mr-2">{a.time}</span>
-                            <span className="text-slate-700">{a.slot}</span>
-                          </div>
-                          <span className="font-bold text-slate-900">{a.worker}</span>
-                        </div>
+
+                    <datalist id="dlbc-workers-list">
+                      {people.filter(p => p.category === 'Worker').map(w => (
+                        <option key={w.id} value={w.fullName} />
                       ))}
+                    </datalist>
+
+                    {rosterDraft.assignments.map((row, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                        <input
+                          type="text"
+                          placeholder="09:30"
+                          value={row.time}
+                          onChange={(e) => handleDraftSlotChange(idx, 'time', e.target.value)}
+                          className="col-span-3 sm:col-span-2 px-2.5 py-1.5 text-xs font-mono border border-slate-300 rounded-lg bg-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Duty / Ministration Slot (e.g., Prayer Charge)"
+                          value={row.slot}
+                          onChange={(e) => handleDraftSlotChange(idx, 'slot', e.target.value)}
+                          className="col-span-9 sm:col-span-5 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                        />
+                        <input
+                          type="text"
+                          list="dlbc-workers-list"
+                          placeholder="Assign Minister / Worker..."
+                          value={row.worker}
+                          onChange={(e) => handleDraftSlotChange(idx, 'worker', e.target.value)}
+                          className="col-span-10 sm:col-span-4 px-2.5 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDraftSlot(idx)}
+                          title="Remove slot"
+                          className="col-span-2 sm:col-span-1 flex justify-center text-slate-400 hover:text-red-600 py-1.5"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowRosterBuilder(false)}
+                      className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-lg"
+                    >
+                      {editingRosterId ? 'Save Updated Roster' : 'Publish Roster'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* ROSTER CARDS GRID */}
+            {filteredRosters.length === 0 ? (
+              <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center">
+                <Calendar className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                <h4 className="font-bold text-slate-800 text-sm">No rosters match this service or location filter</h4>
+                <p className="text-xs text-slate-500 mt-1">Switch the filters above or create a new roster for Sunday, Prayer, or a Special Program.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredRosters.map(r => (
+                  <div key={r.id} className="border border-slate-200 rounded-2xl p-4 bg-white shadow-sm flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-start justify-between gap-2 mb-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[11px] font-bold">{r.location}</span>
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-semibold">{r.date}</span>
+                          </div>
+                          <h4 className="font-bold text-slate-900 text-sm mt-1.5">{r.serviceType}</h4>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => {
+                              const txt = `*DLBC Poland Roster (${r.date} - ${r.location})*
+*${r.serviceType}*
+` +
+                                r.assignments.map(a => `• ${a.time} ${a.slot}: *${a.worker}*`).join('
+');
+                              navigator.clipboard?.writeText(txt);
+                              alert('Roster copied for WhatsApp!');
+                            }}
+                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold rounded-lg"
+                          >
+                            Copy WhatsApp
+                          </button>
+
+                          {isFullAdmin && (
+                            <>
+                              <button
+                                onClick={() => openEditRosterBuilder(r)}
+                                title="Edit Roster"
+                                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteRoster(r.id)}
+                                title="Delete Roster"
+                                className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="divide-y divide-slate-100 bg-slate-50/70 rounded-xl border border-slate-200 px-3">
+                        {r.assignments.map((a, i) => (
+                          <div key={i} className="py-2 flex items-center justify-between text-xs">
+                            <div>
+                              <span className="font-mono text-slate-400 mr-2">{a.time}</span>
+                              <span className="text-slate-700">{a.slot}</span>
+                            </div>
+                            <span className="font-bold text-slate-900">{a.worker}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -1099,91 +1585,185 @@ export default function App() {
           <div className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
               <h3 className="font-bold text-slate-900 text-base mb-1">Log Service Attendance</h3>
-              <p className="text-xs text-slate-500 mb-4">Record Sunday Worship, Koinonia / Home Caring, Bible Study, or Revival services</p>
+              <p className="text-xs text-slate-500 mb-4">Record Sunday Worship, Koinonia / Home Caring, Bible Study, or Revival services along with who recorded it</p>
 
-              <form onSubmit={handleAddAttendance} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 items-end">
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Date</label>
-                  <input type="date" value={attForm.date} onChange={(e) => setAttForm({ ...attForm, date: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg" required />
+              <form onSubmit={handleAddAttendance} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Service Date</label>
+                  <input
+                    type="date"
+                    value={attForm.date}
+                    onChange={(e) => setAttForm({ ...attForm, date: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                    required
+                  />
                 </div>
-                <div className="col-span-2 sm:col-span-1">
+
+                <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
-                  <select value={attForm.location} onChange={(e) => setAttForm({ ...attForm, location: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg">
+                  <select
+                    value={attForm.location}
+                    onChange={(e) => setAttForm({ ...attForm, location: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                  >
                     <option>Warsaw</option>
                     <option>Wrocław</option>
                     <option>Poznań</option>
                     <option>Kraków</option>
                   </select>
                 </div>
-                <div className="col-span-2">
+
+                <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Service Day / Type</label>
-                  <select value={attForm.serviceType} onChange={(e) => setAttForm({ ...attForm, serviceType: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg">
+                  <select
+                    value={attForm.serviceType}
+                    onChange={(e) => setAttForm({ ...attForm, serviceType: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                  >
                     <option>Sunday Worship</option>
                     <option>Koinonia / Home Caring</option>
                     <option>Bible Study</option>
                     <option>Revival / Evangelism</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Recorded By (Name)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Bro Pelumi"
+                    value={attForm.recordedBy}
+                    onChange={(e) => setAttForm({ ...attForm, recordedBy: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                    required
+                  />
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Adults</label>
-                  <input type="number" min="0" value={attForm.adults} onChange={(e) => setAttForm({ ...attForm, adults: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg" />
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={attForm.adults}
+                    onChange={(e) => setAttForm({ ...attForm, adults: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                    required
+                  />
                 </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Youths</label>
-                  <input type="number" min="0" value={attForm.youths} onChange={(e) => setAttForm({ ...attForm, youths: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg" />
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={attForm.youths}
+                    onChange={(e) => setAttForm({ ...attForm, youths: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                  />
                 </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Children</label>
-                  <input type="number" min="0" value={attForm.children} onChange={(e) => setAttForm({ ...attForm, children: e.target.value })} className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg" />
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={attForm.children}
+                    onChange={(e) => setAttForm({ ...attForm, children: e.target.value })}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                  />
                 </div>
-                <div>
-                  <button type="submit" className="w-full px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
-                    Save Record
+
+                {isFullAdmin ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Offering (PLN) <span className="text-slate-400 font-normal">(Optional)</span></label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={attForm.offeringPln}
+                      onChange={(e) => setAttForm({ ...attForm, offeringPln: e.target.value })}
+                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                    />
+                  </div>
+                ) : (
+                  <div />
+                )}
+
+                <div className="sm:col-span-2 lg:col-span-4 flex justify-end pt-1">
+                  <button type="submit" className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                    + Save Attendance Record
                   </button>
                 </div>
               </form>
             </div>
 
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm overflow-x-auto">
-              <h4 className="font-bold text-slate-900 text-sm mb-3">Recent Attendance Log</h4>
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="py-2">Date</th>
-                    <th className="py-2">Location</th>
-                    <th className="py-2">Service Type</th>
-                    <th className="py-2">Adults</th>
-                    <th className="py-2">Youths</th>
-                    <th className="py-2">Children</th>
-                    <th className="py-2 font-bold text-slate-800">Total</th>
-                    {isFullAdmin && <th className="py-2">Offering (PLN)</th>}
-                    <th className="py-2">Recorded By</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {attendance.slice(0, 15).map(rec => (
-                    <tr key={rec.id} className="hover:bg-slate-50">
-                      <td className="py-2 font-medium">{rec.date}</td>
-                      <td className="py-2">{rec.location}</td>
-                      <td className="py-2">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                          rec.serviceType === 'Sunday Worship' ? 'bg-amber-100 text-amber-800' :
-                          rec.serviceType === 'Koinonia / Home Caring' ? 'bg-emerald-100 text-emerald-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {rec.serviceType}
-                        </span>
-                      </td>
-                      <td className="py-2">{rec.adults}</td>
-                      <td className="py-2">{rec.youths}</td>
-                      <td className="py-2">{rec.children}</td>
-                      <td className="py-2 font-bold text-slate-900">{rec.adults + rec.youths + rec.children}</td>
-                      {isFullAdmin && <td className="py-2 font-mono">{rec.offeringPln} PLN</td>}
-                      <td className="py-2 text-slate-500">{rec.recordedBy}</td>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-bold text-slate-900 text-sm">Service Attendance Log ({attendance.length})</h4>
+              </div>
+
+              {attendance.length === 0 ? (
+                <div className="py-10 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/60">
+                  <p className="text-xs font-semibold text-slate-700">No service attendance records logged yet.</p>
+                  <p className="text-xs text-slate-500 mt-1">Use the form above to record Sunday Worship, Koinonia, Bible Study, or Revival attendance.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="py-2">Date</th>
+                      <th className="py-2">Location</th>
+                      <th className="py-2">Service Type</th>
+                      <th className="py-2">Adults</th>
+                      <th className="py-2">Youths</th>
+                      <th className="py-2">Children</th>
+                      <th className="py-2 font-bold text-slate-800">Total</th>
+                      {isFullAdmin && <th className="py-2">Offering (PLN)</th>}
+                      <th className="py-2">Recorded By</th>
+                      {isFullAdmin && <th className="py-2 text-right">Action</th>}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {attendance.map(rec => (
+                      <tr key={rec.id} className="hover:bg-slate-50">
+                        <td className="py-2.5 font-medium">{rec.date}</td>
+                        <td className="py-2.5">{rec.location}</td>
+                        <td className="py-2.5">
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
+                            rec.serviceType === 'Sunday Worship' ? 'bg-amber-100 text-amber-800' :
+                            rec.serviceType === 'Koinonia / Home Caring' ? 'bg-emerald-100 text-emerald-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            {rec.serviceType}
+                          </span>
+                        </td>
+                        <td className="py-2.5">{rec.adults}</td>
+                        <td className="py-2.5">{rec.youths}</td>
+                        <td className="py-2.5">{rec.children}</td>
+                        <td className="py-2.5 font-bold text-slate-900">{rec.adults + rec.youths + rec.children}</td>
+                        {isFullAdmin && <td className="py-2.5 font-mono">{rec.offeringPln ? `${rec.offeringPln} PLN` : '—'}</td>}
+                        <td className="py-2.5 font-semibold text-slate-700">{rec.recordedBy}</td>
+                        {isFullAdmin && (
+                          <td className="py-2.5 text-right">
+                            <button
+                              onClick={() => handleDeleteAttendance(rec.id)}
+                              title="Delete entry"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Delete
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         )}
@@ -1334,105 +1914,350 @@ export default function App() {
         {/* ==================================================================== */}
         {activeTab === 'analytics' && isFullAdmin && (
           <div className="space-y-6">
-            {/* TOP KPI STRIP */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <div>
-                <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-emerald-600" />
-                  Leadership Growth & Service Comparison Analytics
-                </h3>
-                <p className="text-xs text-slate-500">Restricted to Head Pastor & Full-Access Oversight</p>
+            {/* INTERACTIVE CONTROLS BAR (DROPDOWNS FOR CHART VIEW, METRIC, SERVICE & LOCATION) */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-emerald-600" />
+                    Flexible Church Data & Growth Insights
+                  </h3>
+                  <p className="text-xs text-slate-500">Switch between Trend Line, Histogram Distribution, Service-Day Comparison, Demographics, or Location Split</p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Leadership Restricted View
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-600">Filter Location:</span>
-                <select
-                  value={analyticsLocation}
-                  onChange={(e) => setAnalyticsLocation(e.target.value)}
-                  className="px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg bg-slate-50"
-                >
-                  <option>All Locations</option>
-                  <option>Warsaw</option>
-                  <option>Wrocław</option>
-                  <option>Poznań</option>
-                  <option>Kraków</option>
-                </select>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">1. Visualization Type</label>
+                  <select
+                    value={analyticsChartType}
+                    onChange={(e) => setAnalyticsChartType(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-300 rounded-xl bg-amber-50 text-slate-900 focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="trend">📈 Growth Trend (Line & Area)</option>
+                    <option value="histogram">📊 Histogram (Frequency Distribution)</option>
+                    <option value="service_compare">⚖️ Sunday vs. Koinonia & Midweek</option>
+                    <option value="demographics">👨‍👩‍👧‍👦 Demographics (Adults / Youths / Children)</option>
+                    <option value="location_split">📍 Location Comparison (4 Cities)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">2. Metric to Analyze</label>
+                  <select
+                    value={analyticsMetric}
+                    onChange={(e) => setAnalyticsMetric(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50 text-slate-900"
+                  >
+                    <option value="total">Total Attendance (All Ages)</option>
+                    <option value="adults">Adults Only</option>
+                    <option value="youths">Youths Only</option>
+                    <option value="children">Children Only</option>
+                    <option value="offeringPln">Offering (PLN)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">3. Service Day Filter</label>
+                  <select
+                    value={analyticsServiceFilter}
+                    onChange={(e) => setAnalyticsServiceFilter(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50 text-slate-900"
+                  >
+                    <option value="All Services">All Service Days</option>
+                    <option value="Sunday Worship">Sunday Worship</option>
+                    <option value="Koinonia / Home Caring">Koinonia / Home Caring</option>
+                    <option value="Bible Study">Bible Study</option>
+                    <option value="Revival / Evangelism">Revival / Evangelism</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">4. Location Filter</label>
+                  <select
+                    value={analyticsLocation}
+                    onChange={(e) => setAnalyticsLocation(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50 text-slate-900"
+                  >
+                    <option value="All Locations">All Locations (Poland)</option>
+                    <option value="Warsaw">Warsaw</option>
+                    <option value="Wrocław">Wrocław</option>
+                    <option value="Poznań">Poznań</option>
+                    <option value="Kraków">Kraków</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* DYNAMIC KPI SUMMARY CARDS */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[11px] text-slate-500">Matching Sessions</div>
+                  <div className="text-lg font-extrabold text-slate-900">{filteredAttendance.length}</div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[11px] text-slate-500">Average per Service</div>
+                  <div className="text-lg font-extrabold text-slate-900">
+                    {avgSelectedMetric} {analyticsMetric === 'offeringPln' ? 'PLN' : ''}
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[11px] text-slate-500">Highest Recorded Peak</div>
+                  <div className="text-lg font-extrabold text-amber-600">
+                    {peakSelectedMetric} {analyticsMetric === 'offeringPln' ? 'PLN' : ''}
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <div className="text-[11px] text-slate-500">First-to-Latest Change</div>
+                  <div className={`text-lg font-extrabold ${overallGrowthPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {overallGrowthPct >= 0 ? `+${overallGrowthPct}%` : `${overallGrowthPct}%`}
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* CHART 1: MULTI-YEAR SUNDAY GROWTH TREND */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h4 className="font-bold text-slate-900 text-sm">Multi-Year Sunday Worship Growth Trend</h4>
-                    <p className="text-xs text-slate-500">Average Sunday attendance from 2023 H2 to 2026 Q4</p>
-                  </div>
-                  <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800">
-                    {overallGrowthPct >= 0 ? `+${overallGrowthPct}%` : `${overallGrowthPct}%`} Growth
-                  </span>
-                </div>
-
-                <div className="space-y-3 pt-2">
-                  {growthTrendData.map(item => {
-                    const maxVal = Math.max(...growthTrendData.map(d => d.avg), 30);
-                    const widthPct = Math.min(100, Math.round((item.avg / maxVal) * 100));
-                    return (
-                      <div key={item.label} className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="font-semibold text-slate-700">{item.label}</span>
-                          <span className="font-extrabold text-slate-900">{item.avg} avg</span>
-                        </div>
-                        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                          <div
-                            className="bg-gradient-to-r from-slate-800 to-amber-500 h-3 rounded-full transition-all duration-500"
-                            style={{ width: `${widthPct}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+            {/* DYNAMIC VISUALIZATION CANVAS */}
+            {filteredAttendance.length === 0 ? (
+              <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
+                <BarChart3 className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                <h4 className="font-bold text-slate-800 text-sm">No attendance data matches this filter yet</h4>
+                <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                  Log services in the <strong>Attendance & Services</strong> tab (or switch your Location / Service filters above) to generate live trends, histograms, and service comparisons.
+                </p>
               </div>
-
-              {/* CHART 2: SUNDAY WORSHIP VS KOINONIA / OTHER DAYS COMPARISON */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-                <div className="mb-4">
-                  <h4 className="font-bold text-slate-900 text-sm">Sunday Worship vs. Koinonia & Other Service Days</h4>
-                  <p className="text-xs text-slate-500">Midweek engagement ratio compared against Sunday attendance baseline</p>
-                </div>
-
-                <div className="space-y-4 pt-2">
-                  {serviceComparisonData.map(s => (
-                    <div key={s.type} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-900">{s.type}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-slate-900">{s.avg} avg</span>
-                          <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                            s.type === 'Sunday Worship'
-                              ? 'bg-slate-200 text-slate-800'
-                              : s.retentionPct >= 70
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}>
-                            {s.type === 'Sunday Worship' ? '100% Baseline' : `${s.retentionPct}% of Sunday`}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                        <div
-                          className={`h-2.5 rounded-full ${
-                            s.type === 'Sunday Worship' ? 'bg-slate-900' :
-                            s.type === 'Koinonia / Home Caring' ? 'bg-emerald-600' : 'bg-blue-600'
-                          }`}
-                          style={{ width: `${Math.min(100, s.retentionPct)}%` }}
-                        />
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                {/* VIEW 1: INTERACTIVE SVG TREND LINE + BAR PROGRESSION */}
+                {analyticsChartType === 'trend' && (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm">
+                          Chronological Growth Trend — {analyticsMetric === 'offeringPln' ? 'Offering (PLN)' : analyticsMetric.toUpperCase()}
+                        </h4>
+                        <p className="text-xs text-slate-500">{analyticsLocation} • {analyticsServiceFilter}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
+
+                    {chronologicalTrendData.length === 1 ? (
+                      <div className="p-6 rounded-xl bg-amber-50/60 border border-amber-200 text-center space-y-1">
+                        <div className="text-xs text-amber-800 font-semibold">1 Session Logged ({chronologicalTrendData[0].label})</div>
+                        <div className="text-2xl font-extrabold text-slate-900">
+                          {chronologicalTrendData[0].value} {analyticsMetric === 'offeringPln' ? 'PLN' : 'Attendees'}
+                        </div>
+                        <p className="text-xs text-slate-500">Log at least 2 sessions to draw a multi-point trend line.</p>
+                      </div>
+                    ) : (
+                      <div className="w-full overflow-x-auto">
+                        {(() => {
+                          const pts = chronologicalTrendData;
+                          const maxV = Math.max(...pts.map(p => p.value), 1);
+                          const width = Math.max(620, pts.length * 90);
+                          const height = 240;
+                          const padX = 45;
+                          const padY = 30;
+                          const plotW = width - padX * 2;
+                          const plotH = height - padY * 2;
+
+                          const coords = pts.map((p, idx) => {
+                            const x = padX + (idx / (pts.length - 1)) * plotW;
+                            const y = padY + plotH - (p.value / maxV) * plotH;
+                            return { ...p, x, y };
+                          });
+
+                          const polylinePoints = coords.map(c => `${c.x},${c.y}`).join(' ');
+                          const areaPoints = `${coords[0].x},${padY + plotH} ${polylinePoints} ${coords[coords.length - 1].x},${padY + plotH}`;
+
+                          return (
+                            <svg width={width} height={height + 35} className="mx-auto">
+                              <defs>
+                                <linearGradient id="dlbcTrendGrad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.35" />
+                                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.02" />
+                                </linearGradient>
+                              </defs>
+
+                              {/* Horizontal grid lines */}
+                              {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+                                const gy = padY + plotH - ratio * plotH;
+                                const labelVal = Math.round(ratio * maxV);
+                                return (
+                                  <g key={i}>
+                                    <line x1={padX} y1={gy} x2={width - padX} y2={gy} stroke="#e2e8f0" strokeDasharray="3 3" />
+                                    <text x={padX - 8} y={gy + 4} textAnchor="end" fontSize="10" fill="#64748b">{labelVal}</text>
+                                  </g>
+                                );
+                              })}
+
+                              {/* Area fill & trend line */}
+                              <polygon points={areaPoints} fill="url(#dlbcTrendGrad)" />
+                              <polyline fill="none" stroke="#0f172a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={polylinePoints} />
+
+                              {/* Data points & labels */}
+                              {coords.map((c, idx) => (
+                                <g key={idx}>
+                                  <circle cx={c.x} cy={c.y} r="5" fill="#f59e0b" stroke="#0f172a" strokeWidth="2" />
+                                  <text x={c.x} y={c.y - 10} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#0f172a">
+                                    {c.value}
+                                  </text>
+                                  <text x={c.x} y={padY + plotH + 18} textAnchor="middle" fontSize="10" fill="#475569">
+                                    {c.shortDate}
+                                  </text>
+                                </g>
+                              ))}
+                            </svg>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* VIEW 2: HISTOGRAM (FREQUENCY DISTRIBUTION) */}
+                {analyticsChartType === 'histogram' && (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">
+                        Attendance / Offering Histogram — How Often Each Size Range Occurs
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        Shows the distribution of service sizes across {filteredAttendance.length} logged session(s)
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 items-end h-56 pt-6 px-4 bg-slate-50 rounded-xl border border-slate-200">
+                      {(() => {
+                        const maxCount = Math.max(...histogramData.map(b => b.count), 1);
+                        return histogramData.map((bin, idx) => {
+                          const heightPct = Math.round((bin.count / maxCount) * 100);
+                          return (
+                            <div key={idx} className="flex flex-col items-center justify-end h-full pb-3">
+                              <span className="text-xs font-extrabold text-slate-900 mb-1">
+                                {bin.count} {bin.count === 1 ? 'service' : 'services'}
+                              </span>
+                              <div className="w-full max-w-[72px] bg-slate-200/70 rounded-t-lg h-36 flex items-end overflow-hidden">
+                                <div
+                                  className="w-full bg-gradient-to-t from-slate-900 to-amber-500 rounded-t-lg transition-all duration-500"
+                                  style={{ height: `${bin.count === 0 ? 4 : Math.max(12, heightPct)}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-bold text-slate-700 mt-2 text-center">{bin.label}</span>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* VIEW 3: SUNDAY WORSHIP VS KOINONIA & MIDWEEK COMPARISON */}
+                {analyticsChartType === 'service_compare' && (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">Sunday Worship vs. Koinonia & Midweek Services</h4>
+                      <p className="text-xs text-slate-500">Compares average attendance/offering per service day against Sunday Worship</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {serviceComparisonData.map(s => (
+                        <div key={s.type} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <div>
+                              <span className="font-bold text-slate-900">{s.type}</span>
+                              <span className="text-slate-400 ml-2">({s.sessions} sessions)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-slate-900">
+                                {s.avg} avg {analyticsMetric === 'offeringPln' ? 'PLN' : ''}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                s.type === 'Sunday Worship'
+                                  ? 'bg-slate-200 text-slate-800'
+                                  : s.retentionPct >= 70
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {s.type === 'Sunday Worship' ? '100% Baseline' : `${s.retentionPct}% of Sunday`}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                            <div
+                              className={`h-2.5 rounded-full ${
+                                s.type === 'Sunday Worship' ? 'bg-slate-900' :
+                                s.type === 'Koinonia / Home Caring' ? 'bg-emerald-600' : 'bg-blue-600'
+                              }`}
+                              style={{ width: `${Math.min(100, s.retentionPct)}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* VIEW 4: DEMOGRAPHICS BREAKDOWN */}
+                {analyticsChartType === 'demographics' && (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">Congregation Age Demographics (Adults, Youths & Children)</h4>
+                      <p className="text-xs text-slate-500">Cumulative attendance composition across selected filters</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="text-xs font-semibold text-slate-500">Adults</div>
+                        <div className="text-2xl font-extrabold text-slate-900 mt-1">{demographicSummary.adults}</div>
+                        <div className="text-xs font-bold text-amber-700 mt-1">{demographicSummary.adultsPct}% of total</div>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="text-xs font-semibold text-slate-500">Youths / Students</div>
+                        <div className="text-2xl font-extrabold text-emerald-700 mt-1">{demographicSummary.youths}</div>
+                        <div className="text-xs font-bold text-emerald-700 mt-1">{demographicSummary.youthsPct}% of total</div>
+                      </div>
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="text-xs font-semibold text-slate-500">Children</div>
+                        <div className="text-2xl font-extrabold text-blue-700 mt-1">{demographicSummary.children}</div>
+                        <div className="text-xs font-bold text-blue-700 mt-1">{demographicSummary.childrenPct}% of total</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* VIEW 5: LOCATION COMPARISON (4 CITIES) */}
+                {analyticsChartType === 'location_split' && (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">Location Comparison — Warsaw, Wrocław, Poznań & Kraków</h4>
+                      <p className="text-xs text-slate-500">Average per service across Poland ({analyticsServiceFilter})</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {(() => {
+                        const maxLocAvg = Math.max(...locationBreakdownData.map(l => l.avg), 1);
+                        return locationBreakdownData.map(loc => {
+                          const pct = Math.round((loc.avg / maxLocAvg) * 100);
+                          return (
+                            <div key={loc.location} className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span className="font-bold text-slate-800">{loc.location} <span className="font-normal text-slate-400">({loc.sessions} sessions)</span></span>
+                                <span className="font-extrabold text-slate-900">{loc.avg} avg {analyticsMetric === 'offeringPln' ? 'PLN' : ''}</span>
+                              </div>
+                              <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                                <div className="bg-slate-900 h-3 rounded-full" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
         )}
 
