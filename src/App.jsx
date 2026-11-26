@@ -3,7 +3,7 @@ import {
   Users, Calendar, BarChart3, ShieldCheck, UserPlus, ClipboardList,
   MapPin, Lock, Unlock, Plus, Trash2, Archive, RotateCcw, Search,
   Edit3, Check, X, Eye, TrendingUp, BookOpen, Bell,
-  Download, Home
+  Download, Home, Layers
 } from 'lucide-react';
 
 // ============================================================================
@@ -261,7 +261,7 @@ export default function App() {
   };
 
   // ==========================================================================
-  // ANALYTICS COMPUTATIONS
+  // ANALYTICS COMPUTATIONS (STREAMLINED + STACKED COHORT & VISITOR MIX)
   // ==========================================================================
   const [analyticsLocation, setAnalyticsLocation] = useState('');
   const [analyticsChartType, setAnalyticsChartType] = useState('trend');
@@ -307,31 +307,23 @@ export default function App() {
     }));
   }, [filteredAttendance, analyticsMetric]);
 
-  const histogramData = useMemo(() => {
-    if (filteredAttendance.length === 0) return [];
-    const values = filteredAttendance.map(r => getMetricValue(r, analyticsMetric));
-    const isOffering = analyticsMetric === 'offeringPln';
-    const bins = isOffering
-      ? [
-          { label: '0 – 250 PLN', min: 0, max: 250, count: 0 },
-          { label: '251 – 500 PLN', min: 251, max: 500, count: 0 },
-          { label: '501 – 800 PLN', min: 501, max: 800, count: 0 },
-          { label: '801+ PLN', min: 801, max: Infinity, count: 0 }
-        ]
-      : [
-          { label: '1 – 10', min: 1, max: 10, count: 0 },
-          { label: '11 – 20', min: 11, max: 20, count: 0 },
-          { label: '21 – 30', min: 21, max: 30, count: 0 },
-          { label: '31 – 45', min: 31, max: 45, count: 0 },
-          { label: '46+', min: 46, max: Infinity, count: 0 }
-        ];
-
-    values.forEach(v => {
-      const bin = bins.find(b => v >= b.min && v <= b.max);
-      if (bin) bin.count += 1;
+  const cohortStackData = useMemo(() => {
+    const sorted = [...filteredAttendance].sort((a, b) => a.date.localeCompare(b.date));
+    return sorted.map(rec => {
+      const c = getRecordCounts(rec);
+      return {
+        id: rec.id,
+        date: rec.date,
+        location: rec.location,
+        serviceType: rec.serviceType,
+        adults: c.adults,
+        youths: c.youths,
+        children: c.children,
+        visitors: c.visitors,
+        total: c.total
+      };
     });
-    return bins;
-  }, [filteredAttendance, analyticsMetric]);
+  }, [filteredAttendance]);
 
   const serviceComparisonData = useMemo(() => {
     const locQ = analyticsLocation.trim().toLowerCase();
@@ -353,42 +345,6 @@ export default function App() {
       return { type, avg, sessions: recs.length, retentionPct, hasSundayBaseline: sundayAvg > 0 };
     });
   }, [attendance, analyticsLocation, analyticsMetric]);
-
-  const demographicSummary = useMemo(() => {
-    const totals = filteredAttendance.reduce(
-      (acc, r) => {
-        const c = getRecordCounts(r);
-        acc.adultMale += c.adultMale;
-        acc.adultFemale += c.adultFemale;
-        acc.adults += c.adults;
-        acc.youthBoys += c.youthBoys;
-        acc.youthGirls += c.youthGirls;
-        acc.youths += c.youths;
-        acc.childrenBoys += c.childrenBoys;
-        acc.childrenGirls += c.childrenGirls;
-        acc.children += c.children;
-        acc.visitorMale += c.visitorMale;
-        acc.visitorFemale += c.visitorFemale;
-        acc.visitors += c.visitors;
-        return acc;
-      },
-      {
-        adultMale: 0, adultFemale: 0, adults: 0,
-        youthBoys: 0, youthGirls: 0, youths: 0,
-        childrenBoys: 0, childrenGirls: 0, children: 0,
-        visitorMale: 0, visitorFemale: 0, visitors: 0
-      }
-    );
-    const grand = totals.adults + totals.youths + totals.children + totals.visitors;
-    return {
-      ...totals,
-      grand,
-      adultsPct: grand ? Math.round((totals.adults / grand) * 100) : 0,
-      youthsPct: grand ? Math.round((totals.youths / grand) * 100) : 0,
-      childrenPct: grand ? Math.round((totals.children / grand) * 100) : 0,
-      visitorsPct: grand ? Math.round((totals.visitors / grand) * 100) : 0
-    };
-  }, [filteredAttendance]);
 
   const locationBreakdownData = useMemo(() => {
     const svcQ = analyticsServiceFilter.trim().toLowerCase();
@@ -679,7 +635,7 @@ export default function App() {
   };
 
   // ==========================================================================
-  // ATTENDANCE ENTRY STATE
+  // ATTENDANCE ENTRY & CLICK-A-DATE / CLICK-A-MONTH EXPLORER
   // ==========================================================================
   const [attForm, setAttForm] = useState({
     date: new Date().toISOString().slice(0, 10),
@@ -696,6 +652,77 @@ export default function App() {
     offeringPln: '',
     recordedBy: localStorage.getItem('dlbc_viewer_name') || ''
   });
+
+  const [attBrowseMode, setAttBrowseMode] = useState('date'); // 'date' | 'month'
+  const [selectedAttDate, setSelectedAttDate] = useState('');
+  const [selectedAttMonth, setSelectedAttMonth] = useState('');
+
+  const availableAttDates = useMemo(() => {
+    const s = new Set(attendance.map(a => a.date).filter(Boolean));
+    return Array.from(s).sort((a, b) => b.localeCompare(a));
+  }, [attendance]);
+
+  const availableAttMonths = useMemo(() => {
+    const s = new Set(
+      attendance
+        .map(a => (a.date && a.date.length >= 7 ? a.date.slice(0, 7) : ''))
+        .filter(Boolean)
+    );
+    return Array.from(s).sort((a, b) => b.localeCompare(a));
+  }, [attendance]);
+
+  const activeAttDate = useMemo(() => {
+    if (selectedAttDate && availableAttDates.includes(selectedAttDate)) return selectedAttDate;
+    return availableAttDates[0] || '';
+  }, [selectedAttDate, availableAttDates]);
+
+  const activeAttMonth = useMemo(() => {
+    if (selectedAttMonth && availableAttMonths.includes(selectedAttMonth)) return selectedAttMonth;
+    return availableAttMonths[0] || '';
+  }, [selectedAttMonth, availableAttMonths]);
+
+  const dayRecords = useMemo(() => {
+    if (!activeAttDate) return [];
+    return attendance.filter(a => a.date === activeAttDate);
+  }, [attendance, activeAttDate]);
+
+  const monthRecords = useMemo(() => {
+    if (!activeAttMonth) return [];
+    return attendance
+      .filter(a => a.date && a.date.startsWith(activeAttMonth))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [attendance, activeAttMonth]);
+
+  const monthRollupByGroup = useMemo(() => {
+    const map = new Map();
+    monthRecords.forEach(rec => {
+      const key = `${rec.location || 'Unspecified'} — ${rec.serviceType || 'Service'}`;
+      const c = getRecordCounts(rec);
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          location: rec.location || 'Unspecified',
+          serviceType: rec.serviceType || 'Service',
+          sessions: 0,
+          adults: 0,
+          youths: 0,
+          children: 0,
+          visitors: 0,
+          total: 0,
+          offeringPln: 0
+        });
+      }
+      const row = map.get(key);
+      row.sessions += 1;
+      row.adults += c.adults;
+      row.youths += c.youths;
+      row.children += c.children;
+      row.visitors += c.visitors;
+      row.total += c.total;
+      row.offeringPln += Number(rec.offeringPln) || 0;
+    });
+    return Array.from(map.values());
+  }, [monthRecords]);
 
   const handleAddAttendance = (e) => {
     e.preventDefault();
@@ -732,6 +759,10 @@ export default function App() {
       recordedBy: recorder
     };
     setAttendance([entry, ...attendance]);
+    setSelectedAttDate(attForm.date);
+    if (attForm.date && attForm.date.length >= 7) {
+      setSelectedAttMonth(attForm.date.slice(0, 7));
+    }
     setAttForm({
       ...attForm,
       adultMale: '',
@@ -1786,7 +1817,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 4: ATTENDANCE ENTRY & SERVICE LOG */}
+        {/* TAB 4: ATTENDANCE ENTRY & CLICK-A-DATE / CLICK-A-MONTH EXPLORER */}
         {activeTab === 'attendance' && canEnterData && (
           <div className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
@@ -2022,81 +2053,283 @@ export default function App() {
               </form>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm overflow-x-auto">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-bold text-slate-900 text-sm">Service Attendance Log ({attendance.length})</h4>
+            {/* CLICK-A-DATE OR CLICK-A-MONTH TABULAR EXPLORER */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-3 border-b border-slate-200">
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">
+                    Attendance Explorer ({attendance.length} total session{attendance.length === 1 ? '' : 's'} logged)
+                  </h4>
+                  <p className="text-xs text-slate-500">
+                    Click a <strong>Date</strong> to inspect that specific day in tabular form, or click a <strong>Month</strong> to inspect that month
+                  </p>
+                </div>
+
+                <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200 self-start">
+                  <button
+                    type="button"
+                    onClick={() => setAttBrowseMode('date')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                      attBrowseMode === 'date'
+                        ? 'bg-slate-900 text-amber-300 shadow-sm'
+                        : 'text-slate-700 hover:text-slate-900'
+                    }`}
+                  >
+                    By Date
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAttBrowseMode('month')}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                      attBrowseMode === 'month'
+                        ? 'bg-slate-900 text-amber-300 shadow-sm'
+                        : 'text-slate-700 hover:text-slate-900'
+                    }`}
+                  >
+                    By Month
+                  </button>
+                </div>
               </div>
 
               {attendance.length === 0 ? (
                 <div className="py-10 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/60">
                   <p className="text-xs font-semibold text-slate-700">No service attendance records logged yet.</p>
-                  <p className="text-xs text-slate-500 mt-1">Use the form above to record any service with Adults (M/F), Youth (B/G), Children (B/G), and Visitors (M/F).</p>
+                  <p className="text-xs text-slate-500 mt-1">Once you save a service above, you can click its Date or Month here to view it in tabular form.</p>
                 </div>
-              ) : (
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="py-2 pr-2">Date</th>
-                      <th className="py-2 pr-2">Location</th>
-                      <th className="py-2 pr-2">Service Type</th>
-                      <th className="py-2 pr-2">Adults (M / F)</th>
-                      <th className="py-2 pr-2">Youth (B / G)</th>
-                      <th className="py-2 pr-2">Children (B / G)</th>
-                      <th className="py-2 pr-2">Visitors (M / F)</th>
-                      <th className="py-2 pr-2 font-bold text-slate-800">Total</th>
-                      {isFullAdmin && <th className="py-2 pr-2">Offering</th>}
-                      <th className="py-2 pr-2">Recorded By</th>
-                      {isFullAdmin && <th className="py-2 text-right">Action</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {attendance.map(rec => {
-                      const c = getRecordCounts(rec);
+              ) : attBrowseMode === 'date' ? (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mr-1">Click a Date:</span>
+                    {availableAttDates.map(dt => {
+                      const countForDay = attendance.filter(a => a.date === dt).length;
+                      const selected = dt === activeAttDate;
                       return (
-                        <tr key={rec.id} className="hover:bg-slate-50">
-                          <td className="py-2.5 pr-2 font-medium whitespace-nowrap">{rec.date}</td>
-                          <td className="py-2.5 pr-2 font-semibold text-slate-800">{rec.location}</td>
-                          <td className="py-2.5 pr-2">
-                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-900">
-                              {rec.serviceType}
-                            </span>
-                          </td>
-                          <td className="py-2.5 pr-2 whitespace-nowrap">
-                            <span className="font-bold text-slate-900">{c.adults}</span>{' '}
-                            <span className="text-slate-500">({c.adultMale}M / {c.adultFemale}F)</span>
-                          </td>
-                          <td className="py-2.5 pr-2 whitespace-nowrap">
-                            <span className="font-bold text-emerald-800">{c.youths}</span>{' '}
-                            <span className="text-slate-500">({c.youthBoys}B / {c.youthGirls}G)</span>
-                          </td>
-                          <td className="py-2.5 pr-2 whitespace-nowrap">
-                            <span className="font-bold text-blue-800">{c.children}</span>{' '}
-                            <span className="text-slate-500">({c.childrenBoys}B / {c.childrenGirls}G)</span>
-                          </td>
-                          <td className="py-2.5 pr-2 whitespace-nowrap">
-                            <span className="font-bold text-purple-800">{c.visitors}</span>{' '}
-                            <span className="text-slate-500">({c.visitorMale}M / {c.visitorFemale}F)</span>
-                          </td>
-                          <td className="py-2.5 pr-2 font-extrabold text-slate-900">{c.total}</td>
-                          {isFullAdmin && <td className="py-2.5 pr-2 font-mono whitespace-nowrap">{rec.offeringPln ? `${rec.offeringPln} PLN` : '—'}</td>}
-                          <td className="py-2.5 pr-2 font-semibold text-slate-700">{rec.recordedBy}</td>
-                          {isFullAdmin && (
-                            <td className="py-2.5 text-right">
-                              <button
-                                onClick={() => handleDeleteAttendance(rec.id)}
-                                title="Delete entry"
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                                Delete
-                              </button>
-                            </td>
-                          )}
-                        </tr>
+                        <button
+                          key={dt}
+                          type="button"
+                          onClick={() => setSelectedAttDate(dt)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                            selected
+                              ? 'bg-slate-900 text-amber-300 border-slate-900 shadow-sm'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                          }`}
+                        >
+                          {dt}{' '}
+                          <span className={`ml-1 text-[10px] ${selected ? 'text-amber-200' : 'text-slate-400'}`}>
+                            ({countForDay})
+                          </span>
+                        </button>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </div>
+
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                    <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-900">Tabular Breakdown for Date: {activeAttDate}</span>
+                      <span className="text-slate-500">{dayRecords.length} session(s)</span>
+                    </div>
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-500 bg-white">
+                          <th className="py-2.5 px-3">Location</th>
+                          <th className="py-2.5 px-3">Service Type</th>
+                          <th className="py-2.5 px-3">Adults (M / F)</th>
+                          <th className="py-2.5 px-3">Youth (B / G)</th>
+                          <th className="py-2.5 px-3">Children (B / G)</th>
+                          <th className="py-2.5 px-3">Visitors (M / F)</th>
+                          <th className="py-2.5 px-3 font-bold text-slate-800">Total</th>
+                          {isFullAdmin && <th className="py-2.5 px-3">Offering</th>}
+                          <th className="py-2.5 px-3">Recorded By</th>
+                          {isFullAdmin && <th className="py-2.5 px-3 text-right">Action</th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {dayRecords.map(rec => {
+                          const c = getRecordCounts(rec);
+                          return (
+                            <tr key={rec.id} className="hover:bg-slate-50">
+                              <td className="py-2.5 px-3 font-semibold text-slate-800">{rec.location}</td>
+                              <td className="py-2.5 px-3">
+                                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-900">
+                                  {rec.serviceType}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 whitespace-nowrap">
+                                <span className="font-bold text-slate-900">{c.adults}</span>{' '}
+                                <span className="text-slate-500">({c.adultMale}M / {c.adultFemale}F)</span>
+                              </td>
+                              <td className="py-2.5 px-3 whitespace-nowrap">
+                                <span className="font-bold text-emerald-800">{c.youths}</span>{' '}
+                                <span className="text-slate-500">({c.youthBoys}B / {c.youthGirls}G)</span>
+                              </td>
+                              <td className="py-2.5 px-3 whitespace-nowrap">
+                                <span className="font-bold text-blue-800">{c.children}</span>{' '}
+                                <span className="text-slate-500">({c.childrenBoys}B / {c.childrenGirls}G)</span>
+                              </td>
+                              <td className="py-2.5 px-3 whitespace-nowrap">
+                                <span className="font-bold text-purple-800">{c.visitors}</span>{' '}
+                                <span className="text-slate-500">({c.visitorMale}M / {c.visitorFemale}F)</span>
+                              </td>
+                              <td className="py-2.5 px-3 font-extrabold text-slate-900">{c.total}</td>
+                              {isFullAdmin && <td className="py-2.5 px-3 font-mono whitespace-nowrap">{rec.offeringPln ? `${rec.offeringPln} PLN` : '—'}</td>}
+                              <td className="py-2.5 px-3 font-semibold text-slate-700">{rec.recordedBy}</td>
+                              {isFullAdmin && (
+                                <td className="py-2.5 px-3 text-right">
+                                  <button
+                                    onClick={() => handleDeleteAttendance(rec.id)}
+                                    title="Delete entry"
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                    Delete
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mr-1">Click a Month:</span>
+                    {availableAttMonths.map(mo => {
+                      const countForMonth = attendance.filter(a => a.date && a.date.startsWith(mo)).length;
+                      const selected = mo === activeAttMonth;
+                      return (
+                        <button
+                          key={mo}
+                          type="button"
+                          onClick={() => setSelectedAttMonth(mo)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                            selected
+                              ? 'bg-slate-900 text-amber-300 border-slate-900 shadow-sm'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                          }`}
+                        >
+                          {mo}{' '}
+                          <span className={`ml-1 text-[10px] ${selected ? 'text-amber-200' : 'text-slate-400'}`}>
+                            ({countForMonth})
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Monthly Summary Table by Location & Service */}
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                    <div className="bg-amber-50/70 px-4 py-2.5 border-b border-amber-200 flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-900">Monthly Summary Table for {activeAttMonth}</span>
+                      <span className="text-slate-600">{monthRecords.length} session(s)</span>
+                    </div>
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-500 bg-white">
+                          <th className="py-2.5 px-3">Location</th>
+                          <th className="py-2.5 px-3">Service Type</th>
+                          <th className="py-2.5 px-3">Sessions</th>
+                          <th className="py-2.5 px-3">Adults</th>
+                          <th className="py-2.5 px-3">Youth</th>
+                          <th className="py-2.5 px-3">Children</th>
+                          <th className="py-2.5 px-3">Visitors</th>
+                          <th className="py-2.5 px-3 font-bold text-slate-800">Monthly Total</th>
+                          <th className="py-2.5 px-3 font-bold text-emerald-800">Avg / Service</th>
+                          {isFullAdmin && <th className="py-2.5 px-3">Offering</th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {monthRollupByGroup.map(row => (
+                          <tr key={row.key} className="hover:bg-slate-50">
+                            <td className="py-2.5 px-3 font-semibold text-slate-800">{row.location}</td>
+                            <td className="py-2.5 px-3">
+                              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-900">
+                                {row.serviceType}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold">{row.sessions}</td>
+                            <td className="py-2.5 px-3 font-bold text-slate-900">{row.adults}</td>
+                            <td className="py-2.5 px-3 font-bold text-emerald-800">{row.youths}</td>
+                            <td className="py-2.5 px-3 font-bold text-blue-800">{row.children}</td>
+                            <td className="py-2.5 px-3 font-bold text-purple-800">{row.visitors}</td>
+                            <td className="py-2.5 px-3 font-extrabold text-slate-900">{row.total}</td>
+                            <td className="py-2.5 px-3 font-bold text-emerald-700">
+                              {row.sessions ? (row.total / row.sessions).toFixed(1) : 0}
+                            </td>
+                            {isFullAdmin && (
+                              <td className="py-2.5 px-3 font-mono whitespace-nowrap">
+                                {row.offeringPln ? `${row.offeringPln.toFixed(2)} PLN` : '—'}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Individual Sessions Inside Selected Month */}
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                    <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 text-xs font-bold text-slate-800">
+                      Sessions Logged in {activeAttMonth}
+                    </div>
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-500 bg-white">
+                          <th className="py-2 px-3">Date</th>
+                          <th className="py-2 px-3">Location</th>
+                          <th className="py-2 px-3">Service Type</th>
+                          <th className="py-2 px-3">Adults (M/F)</th>
+                          <th className="py-2 px-3">Youth (B/G)</th>
+                          <th className="py-2 px-3">Children (B/G)</th>
+                          <th className="py-2 px-3">Visitors (M/F)</th>
+                          <th className="py-2 px-3 font-bold text-slate-800">Total</th>
+                          {isFullAdmin && <th className="py-2 px-3 text-right">Action</th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {monthRecords.map(rec => {
+                          const c = getRecordCounts(rec);
+                          return (
+                            <tr
+                              key={rec.id}
+                              onClick={() => {
+                                setSelectedAttDate(rec.date);
+                                setAttBrowseMode('date');
+                              }}
+                              className="hover:bg-amber-50/40 cursor-pointer"
+                              title="Click to inspect this exact date"
+                            >
+                              <td className="py-2 px-3 font-semibold text-amber-800 underline">{rec.date}</td>
+                              <td className="py-2 px-3 font-semibold text-slate-800">{rec.location}</td>
+                              <td className="py-2 px-3">{rec.serviceType}</td>
+                              <td className="py-2 px-3 whitespace-nowrap">{c.adults} ({c.adultMale}M/{c.adultFemale}F)</td>
+                              <td className="py-2 px-3 whitespace-nowrap">{c.youths} ({c.youthBoys}B/{c.youthGirls}G)</td>
+                              <td className="py-2 px-3 whitespace-nowrap">{c.children} ({c.childrenBoys}B/{c.childrenGirls}G)</td>
+                              <td className="py-2 px-3 whitespace-nowrap">{c.visitors} ({c.visitorMale}M/{c.visitorFemale}F)</td>
+                              <td className="py-2 px-3 font-extrabold text-slate-900">{c.total}</td>
+                              {isFullAdmin && (
+                                <td
+                                  className="py-2 px-3 text-right"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    onClick={() => handleDeleteAttendance(rec.id)}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                    Delete
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -2252,7 +2485,7 @@ export default function App() {
                     <TrendingUp className="w-5 h-5 text-emerald-600" />
                     Flexible Church Data & Growth Insights
                   </h3>
-                  <p className="text-xs text-slate-500">Analyze attendance by Age, Gender (Male/Female, Boys/Girls), Visitors, Service Type, or Location</p>
+                  <p className="text-xs text-slate-500">Analyze attendance trends, cohort mix, service retention, and location performance</p>
                 </div>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                   <ShieldCheck className="w-3.5 h-3.5" />
@@ -2269,9 +2502,8 @@ export default function App() {
                     className="w-full px-3 py-2 text-xs font-bold border border-slate-300 rounded-xl bg-amber-50 text-slate-900 focus:outline-none focus:border-amber-500"
                   >
                     <option value="trend">📈 Growth Trend (Line & Area)</option>
-                    <option value="histogram">📊 Histogram (Frequency Distribution)</option>
+                    <option value="cohort_stack">🧱 Stacked Cohort & Visitor Mix</option>
                     <option value="service_compare">⚖️ Service-by-Service Comparison</option>
-                    <option value="demographics">👨‍👩‍👧‍👦 Age, Gender & Visitors Breakdown</option>
                     <option value="location_split">📍 Location Comparison</option>
                   </select>
                 </div>
@@ -2445,38 +2677,89 @@ export default function App() {
                   </div>
                 )}
 
-                {analyticsChartType === 'histogram' && (
+                {analyticsChartType === 'cohort_stack' && (
                   <div className="space-y-4">
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-sm">
-                        Attendance / Offering Histogram — How Often Each Size Range Occurs
-                      </h4>
-                      <p className="text-xs text-slate-500">
-                        Shows the distribution of service sizes across {filteredAttendance.length} logged session(s)
-                      </p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                          <Layers className="w-4 h-4 text-amber-600" />
+                          Stacked Cohort & Visitor Mix per Session
+                        </h4>
+                        <p className="text-xs text-slate-500">
+                          See how Adults, Youth, Children, and Visitors stack up in each service
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-3 h-3 rounded-sm bg-slate-900 inline-block" /> Adults
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> Youth
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-3 h-3 rounded-sm bg-blue-500 inline-block" /> Children
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-3 h-3 rounded-sm bg-purple-500 inline-block" /> Visitors
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 items-end h-56 pt-6 px-4 bg-slate-50 rounded-xl border border-slate-200">
-                      {(() => {
-                        const maxCount = Math.max(...histogramData.map(b => b.count), 1);
-                        return histogramData.map((bin, idx) => {
-                          const heightPct = Math.round((bin.count / maxCount) * 100);
-                          return (
-                            <div key={idx} className="flex flex-col items-center justify-end h-full pb-3">
-                              <span className="text-xs font-extrabold text-slate-900 mb-1">
-                                {bin.count} {bin.count === 1 ? 'service' : 'services'}
-                              </span>
-                              <div className="w-full max-w-[72px] bg-slate-200/70 rounded-t-lg h-36 flex items-end overflow-hidden">
-                                <div
-                                  className="w-full bg-gradient-to-t from-slate-900 to-amber-500 rounded-t-lg transition-all duration-500"
-                                  style={{ height: `${bin.count === 0 ? 4 : Math.max(12, heightPct)}%` }}
-                                />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {cohortStackData.map(item => {
+                        const safeTotal = Math.max(item.total, 1);
+                        const aPct = Math.round((item.adults / safeTotal) * 100);
+                        const yPct = Math.round((item.youths / safeTotal) * 100);
+                        const cPct = Math.round((item.children / safeTotal) * 100);
+                        const vPct = Math.max(0, 100 - aPct - yPct - cPct);
+                        return (
+                          <div key={item.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="text-xs font-extrabold text-slate-900">{item.date} • {item.location}</div>
+                                <div className="text-[11px] text-slate-500">{item.serviceType}</div>
                               </div>
-                              <span className="text-xs font-bold text-slate-700 mt-2 text-center">{bin.label}</span>
+                              <span className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-950 text-xs font-extrabold">
+                                {item.total} total
+                              </span>
                             </div>
-                          );
-                        });
-                      })()}
+
+                            <div className="w-full h-4 rounded-full overflow-hidden flex bg-slate-200">
+                              {item.adults > 0 && (
+                                <div className="bg-slate-900 h-full" style={{ width: `${aPct}%` }} title={`Adults: ${item.adults}`} />
+                              )}
+                              {item.youths > 0 && (
+                                <div className="bg-emerald-500 h-full" style={{ width: `${yPct}%` }} title={`Youth: ${item.youths}`} />
+                              )}
+                              {item.children > 0 && (
+                                <div className="bg-blue-500 h-full" style={{ width: `${cPct}%` }} title={`Children: ${item.children}`} />
+                              )}
+                              {item.visitors > 0 && (
+                                <div className="bg-purple-500 h-full" style={{ width: `${vPct}%` }} title={`Visitors: ${item.visitors}`} />
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-4 gap-1.5 text-[11px] pt-1">
+                              <div className="bg-white rounded-lg p-1.5 border border-slate-200/80 text-center">
+                                <div className="text-slate-400 text-[10px]">Adults</div>
+                                <div className="font-bold text-slate-900">{item.adults}</div>
+                              </div>
+                              <div className="bg-white rounded-lg p-1.5 border border-slate-200/80 text-center">
+                                <div className="text-emerald-600 text-[10px]">Youth</div>
+                                <div className="font-bold text-emerald-900">{item.youths}</div>
+                              </div>
+                              <div className="bg-white rounded-lg p-1.5 border border-slate-200/80 text-center">
+                                <div className="text-blue-600 text-[10px]">Children</div>
+                                <div className="font-bold text-blue-900">{item.children}</div>
+                              </div>
+                              <div className="bg-white rounded-lg p-1.5 border border-slate-200/80 text-center">
+                                <div className="text-purple-600 text-[10px]">Visitors</div>
+                                <div className="font-bold text-purple-900">{item.visitors}</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -2518,57 +2801,6 @@ export default function App() {
                           );
                         });
                       })()}
-                    </div>
-                  </div>
-                )}
-
-                {analyticsChartType === 'demographics' && (
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-sm">Congregation Age, Gender & Visitors Breakdown</h4>
-                      <p className="text-xs text-slate-500">Cumulative attendance composition across Adults (M/F), Youth (B/G), Children (B/G), and Visitors (M/F)</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                        <div className="text-xs font-semibold text-slate-500">Adults Total</div>
-                        <div className="text-2xl font-extrabold text-slate-900">{demographicSummary.adults}</div>
-                        <div className="text-xs font-bold text-amber-700">{demographicSummary.adultsPct}% of attendance</div>
-                        <div className="pt-2 border-t border-slate-200 flex justify-between text-xs text-slate-700">
-                          <span>Male: <strong>{demographicSummary.adultMale}</strong></span>
-                          <span>Female: <strong>{demographicSummary.adultFemale}</strong></span>
-                        </div>
-                      </div>
-
-                      <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200 space-y-2">
-                        <div className="text-xs font-semibold text-emerald-800">Youth Total</div>
-                        <div className="text-2xl font-extrabold text-emerald-900">{demographicSummary.youths}</div>
-                        <div className="text-xs font-bold text-emerald-700">{demographicSummary.youthsPct}% of attendance</div>
-                        <div className="pt-2 border-t border-emerald-200 flex justify-between text-xs text-slate-700">
-                          <span>Boys: <strong>{demographicSummary.youthBoys}</strong></span>
-                          <span>Girls: <strong>{demographicSummary.youthGirls}</strong></span>
-                        </div>
-                      </div>
-
-                      <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-200 space-y-2">
-                        <div className="text-xs font-semibold text-blue-800">Children Total</div>
-                        <div className="text-2xl font-extrabold text-blue-900">{demographicSummary.children}</div>
-                        <div className="text-xs font-bold text-blue-700">{demographicSummary.childrenPct}% of attendance</div>
-                        <div className="pt-2 border-t border-blue-200 flex justify-between text-xs text-slate-700">
-                          <span>Boys: <strong>{demographicSummary.childrenBoys}</strong></span>
-                          <span>Girls: <strong>{demographicSummary.childrenGirls}</strong></span>
-                        </div>
-                      </div>
-
-                      <div className="p-4 rounded-xl bg-purple-50/50 border border-purple-200 space-y-2">
-                        <div className="text-xs font-semibold text-purple-800">Visitors Total</div>
-                        <div className="text-2xl font-extrabold text-purple-900">{demographicSummary.visitors}</div>
-                        <div className="text-xs font-bold text-purple-700">{demographicSummary.visitorsPct}% of attendance</div>
-                        <div className="pt-2 border-t border-purple-200 flex justify-between text-xs text-slate-700">
-                          <span>Male: <strong>{demographicSummary.visitorMale}</strong></span>
-                          <span>Female: <strong>{demographicSummary.visitorFemale}</strong></span>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 )}
