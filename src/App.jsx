@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 // ============================================================================
-// INITIAL DATA & CHURCH RECORDS (DLBC POLAND: WARSAW, WROCLAW, POZNAN, KRAKOW)
+// INITIAL DATA & CHURCH RECORDS (DLBC POLAND)
 // ============================================================================
 const INITIAL_PEOPLE = [
   // WORKERS
@@ -47,40 +47,8 @@ const INITIAL_NEWCOMERS = [
   { id: 'nc6', fullName: 'Samuel Adjei', phone: '+48 512 334 106', location: 'Warsaw', visitDate: '2026-07-12', invitedBy: 'Pastor Dare', assignedFollowUp: 'Bro David', status: 'Established', notes: 'Summer outreach convert — archived after Q3 follow-up', archived: true }
 ];
 
-const INITIAL_PLANS_AND_NOTICES = {
-  '2025': {
-    theme: '2025: Year of Unshakable Foundation & Koinonia Multiplication',
-    noticeBoard: [
-      { id: 'n25-1', title: '2025 Year-End Thanksgiving Archive', date: '2025-12-14', audience: 'All Locations', priority: 'Normal', body: 'All four Polish locations gathered for combined Thanksgiving and annual review.' }
-    ],
-    goals: [
-      { id: 'g25-1', quarter: 'Q1–Q2 2025', title: 'Establish Weekly Koinonia Centers in Warsaw', target: '2 Active Centers', progress: 100, status: 'Completed' },
-      { id: 'g25-2', quarter: 'Q3–Q4 2025', title: 'Grow Sunday Attendance Above 22 Avg', target: '23.6 Achieved', progress: 100, status: 'Completed' }
-    ]
-  },
-  '2026': {
-    theme: '2026: Year of Open Doors, Sound Doctrine & Harvest Across Poland',
-    noticeBoard: [
-      { id: 'n26-1', title: 'December National Retreat & Crossover Vigil', date: '2026-12-26', audience: 'All Poland Locations', priority: 'Urgent', body: 'Combined Poland Retreat runs Dec 26–29. Location coordinators should submit travel headcount by Dec 10.' },
-      { id: 'n26-2', title: 'Weekly Koinonia House Fellowship Expansion', date: '2026-11-28', audience: 'Warsaw, Wrocław, Poznań, Kraków', priority: 'Normal', body: 'Every member is encouraged to host or attend midweek Koinonia fellowship in their district.' }
-    ],
-    goals: [
-      { id: 'g26-1', quarter: 'Q1–Q2 2026', title: 'Launch Structured Newcomer Follow-Up Pipeline', target: '100% 48-hr Contact', progress: 100, status: 'Completed' },
-      { id: 'g26-2', quarter: 'Q3 2026', title: 'Koinonia Attendance Ratio >= 75% of Sunday', target: '82% Achieved', progress: 100, status: 'Completed' },
-      { id: 'g26-3', quarter: 'Q4 2026', title: 'Reach 30+ Sunday Worship Attendance in Warsaw', target: '31 Recorded Nov 22', progress: 95, status: 'In Progress' }
-    ]
-  },
-  '2027': {
-    theme: '2027: Year of Deeper Roots & City-Wide Evangelism',
-    noticeBoard: [
-      { id: 'n27-1', title: '2027 Q1 Workers & Leaders Strategic Planning', date: '2027-01-09', audience: 'All Workers', priority: 'Normal', body: 'Annual workers alignment and roster commissioning across all Polish cities.' }
-    ],
-    goals: [
-      { id: 'g27-1', quarter: 'Q1 2027', title: 'Open Gdańsk / Tri-City Outreach Cell', target: '10 Core Members', progress: 15, status: 'Planned' },
-      { id: 'g27-2', quarter: 'Q2 2027', title: 'Train 12 New Workers Across Locations', target: '12 Certified Workers', progress: 10, status: 'Planned' }
-    ]
-  }
-};
+// No hardcoded years — starts clean so users create & delete years freely
+const INITIAL_PLANS_AND_NOTICES = {};
 
 const INITIAL_ROSTERS = [
   {
@@ -118,7 +86,6 @@ const ACCESS_CODES = {
   'DLBC-UE2026': { role: 'usher_entry', label: 'Usher / Data Entry' }
 };
 
-// Helper to safely extract age & gender breakdown (supports legacy or v4 records)
 const getRecordCounts = (rec) => {
   const adultMale = Number(rec.adultMale) || 0;
   const adultFemale = Number(rec.adultFemale) || 0;
@@ -177,7 +144,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_NEWCOMERS;
   });
   const [plansByYear, setPlansByYear] = useState(() => {
-    const saved = localStorage.getItem('dlbc_plans_v2');
+    const saved = localStorage.getItem('dlbc_plans_v3');
     return saved ? JSON.parse(saved) : INITIAL_PLANS_AND_NOTICES;
   });
   const [rosters, setRosters] = useState(() => {
@@ -189,13 +156,12 @@ export default function App() {
   useEffect(() => { localStorage.setItem('dlbc_weekly_services_v1', JSON.stringify(weeklyServices)); }, [weeklyServices]);
   useEffect(() => { localStorage.setItem('dlbc_attendance_v4', JSON.stringify(attendance)); }, [attendance]);
   useEffect(() => { localStorage.setItem('dlbc_newcomers_v2', JSON.stringify(newcomers)); }, [newcomers]);
-  useEffect(() => { localStorage.setItem('dlbc_plans_v2', JSON.stringify(plansByYear)); }, [plansByYear]);
+  useEffect(() => { localStorage.setItem('dlbc_plans_v3', JSON.stringify(plansByYear)); }, [plansByYear]);
   useEffect(() => { localStorage.setItem('dlbc_rosters_v2', JSON.stringify(rosters)); }, [rosters]);
 
   const isFullAdmin = accessLevel === 'head_pastor' || accessLevel === 'full_access';
   const canEnterData = isFullAdmin || accessLevel === 'usher_entry';
 
-  // Dynamic autocomplete lists from existing records
   const knownLocations = useMemo(() => {
     const set = new Set(['Warsaw', 'Wrocław', 'Poznań', 'Kraków']);
     people.forEach(p => p.location && set.add(p.location.trim()));
@@ -581,29 +547,39 @@ export default function App() {
   };
 
   // ==========================================================================
-  // MULTI-YEAR STRATEGIC PLAN & NOTICE BOARD STATE
+  // DYNAMIC MULTI-YEAR STRATEGIC PLAN & NOTICE BOARD (NO HARDCODED YEARS)
   // ==========================================================================
-  const [selectedPlanYear, setSelectedPlanYear] = useState('2026');
+  const availableYears = useMemo(() => Object.keys(plansByYear).sort(), [plansByYear]);
+
+  const [selectedPlanYear, setSelectedPlanYear] = useState(() => {
+    const saved = localStorage.getItem('dlbc_plans_v3');
+    if (saved) {
+      const keys = Object.keys(JSON.parse(saved)).sort();
+      return keys.length ? keys[keys.length - 1] : '';
+    }
+    return '';
+  });
   const [newYearInput, setNewYearInput] = useState('');
-  const [newNoticeForm, setNewNoticeForm] = useState({ title: '', date: '2026-12-01', audience: 'All Locations', priority: 'Normal', body: '' });
+  const [newNoticeForm, setNewNoticeForm] = useState({ title: '', date: '', audience: 'All Locations', priority: 'Normal', body: '' });
   const [newGoalForm, setNewGoalForm] = useState({ quarter: 'Q1', title: '', target: '', progress: 0, status: 'Planned' });
 
-  const availableYears = Object.keys(plansByYear).sort();
-  const currentYearData = plansByYear[selectedPlanYear] || {
-    theme: `${selectedPlanYear}: Strategic Church Plan & Vision`,
-    noticeBoard: [],
-    goals: []
-  };
+  // Keep selectedPlanYear valid if years are added/deleted
+  const activePlanYear = useMemo(() => {
+    if (selectedPlanYear && plansByYear[selectedPlanYear]) return selectedPlanYear;
+    return availableYears.length > 0 ? availableYears[availableYears.length - 1] : '';
+  }, [selectedPlanYear, plansByYear, availableYears]);
+
+  const currentYearData = activePlanYear ? plansByYear[activePlanYear] : null;
 
   const handleCreateYear = (e) => {
     e.preventDefault();
     const yr = newYearInput.trim();
-    if (!yr || !/^\d{4}$/.test(yr)) return;
+    if (!yr) return;
     if (!plansByYear[yr]) {
       setPlansByYear({
         ...plansByYear,
         [yr]: {
-          theme: `${yr}: Year of Expansion & Spiritual Establishment across Poland`,
+          theme: `${yr}: Strategic Church Plan & Vision`,
           noticeBoard: [],
           goals: []
         }
@@ -613,31 +589,50 @@ export default function App() {
     setNewYearInput('');
   };
 
+  const handleDeleteYear = (yrToDelete) => {
+    if (!yrToDelete || !plansByYear[yrToDelete]) return;
+    const confirmed = window.confirm(`Delete ${yrToDelete} completely, including its theme, notice board posts, and strategic goals?`);
+    if (!confirmed) return;
+
+    const updated = { ...plansByYear };
+    delete updated[yrToDelete];
+    setPlansByYear(updated);
+
+    const remaining = Object.keys(updated).sort();
+    setSelectedPlanYear(remaining.length > 0 ? remaining[remaining.length - 1] : '');
+  };
+
   const handleUpdateYearTheme = (newTheme) => {
+    if (!activePlanYear || !currentYearData) return;
     setPlansByYear({
       ...plansByYear,
-      [selectedPlanYear]: { ...currentYearData, theme: newTheme }
+      [activePlanYear]: { ...currentYearData, theme: newTheme }
     });
   };
 
   const handleAddNotice = (e) => {
     e.preventDefault();
-    if (!newNoticeForm.title.trim()) return;
-    const notice = { id: 'not-' + Date.now(), ...newNoticeForm };
+    if (!activePlanYear || !currentYearData || !newNoticeForm.title.trim()) return;
+    const notice = {
+      id: 'not-' + Date.now(),
+      ...newNoticeForm,
+      date: newNoticeForm.date || new Date().toISOString().slice(0, 10)
+    };
     setPlansByYear({
       ...plansByYear,
-      [selectedPlanYear]: {
+      [activePlanYear]: {
         ...currentYearData,
         noticeBoard: [notice, ...currentYearData.noticeBoard]
       }
     });
-    setNewNoticeForm({ title: '', date: `${selectedPlanYear}-12-01`, audience: 'All Locations', priority: 'Normal', body: '' });
+    setNewNoticeForm({ title: '', date: '', audience: 'All Locations', priority: 'Normal', body: '' });
   };
 
   const handleDeleteNotice = (noticeId) => {
+    if (!activePlanYear || !currentYearData) return;
     setPlansByYear({
       ...plansByYear,
-      [selectedPlanYear]: {
+      [activePlanYear]: {
         ...currentYearData,
         noticeBoard: currentYearData.noticeBoard.filter(n => n.id !== noticeId)
       }
@@ -646,11 +641,11 @@ export default function App() {
 
   const handleAddGoal = (e) => {
     e.preventDefault();
-    if (!newGoalForm.title.trim()) return;
+    if (!activePlanYear || !currentYearData || !newGoalForm.title.trim()) return;
     const goal = { id: 'goal-' + Date.now(), ...newGoalForm, progress: Number(newGoalForm.progress) };
     setPlansByYear({
       ...plansByYear,
-      [selectedPlanYear]: {
+      [activePlanYear]: {
         ...currentYearData,
         goals: [...currentYearData.goals, goal]
       }
@@ -659,9 +654,10 @@ export default function App() {
   };
 
   const handleDeleteGoal = (goalId) => {
+    if (!activePlanYear || !currentYearData) return;
     setPlansByYear({
       ...plansByYear,
-      [selectedPlanYear]: {
+      [activePlanYear]: {
         ...currentYearData,
         goals: currentYearData.goals.filter(g => g.id !== goalId)
       }
@@ -669,7 +665,7 @@ export default function App() {
   };
 
   // ==========================================================================
-  // ATTENDANCE ENTRY STATE (MALE/FEMALE & BOYS/GIRLS + FREE-TEXT LOCATION/SERVICE)
+  // ATTENDANCE ENTRY STATE
   // ==========================================================================
   const [attForm, setAttForm] = useState({
     date: new Date().toISOString().slice(0, 10),
@@ -733,7 +729,7 @@ export default function App() {
   };
 
   // ==========================================================================
-  // FLEXIBLE MINISTERING ROSTERS (FREE-TEXT SERVICE & LOCATION + CUSTOM SLOTS)
+  // FLEXIBLE MINISTERING ROSTERS
   // ==========================================================================
   const [rosterLocationFilter, setRosterLocationFilter] = useState('');
   const [rosterServiceFilter, setRosterServiceFilter] = useState('');
@@ -868,7 +864,7 @@ export default function App() {
   const navTabs = [
     { id: 'overview', label: 'Overview & Notice Board', icon: Bell, visible: true },
     { id: 'rosters', label: 'Ministering Rosters', icon: Calendar, visible: true },
-    { id: 'plans', label: `${selectedPlanYear} Strategic Plan`, icon: BookOpen, visible: true },
+    { id: 'plans', label: activePlanYear ? `${activePlanYear} Strategic Plan` : 'Strategic Plan', icon: BookOpen, visible: true },
     { id: 'attendance', label: 'Attendance & Services', icon: ClipboardList, visible: canEnterData },
     { id: 'newcomers', label: 'Newcomers & Follow-Up', icon: UserPlus, visible: canEnterData },
     { id: 'analytics', label: 'Growth & Service Analytics', icon: BarChart3, visible: isFullAdmin },
@@ -881,7 +877,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* Shared datalists for free-text inputs with helpful suggestions */}
       <datalist id="dlbc-locations-list">
         {knownLocations.map(loc => (
           <option key={loc} value={loc} />
@@ -1054,15 +1049,21 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">
-              {selectedPlanYear} Theme • {currentYearData.theme}
-            </p>
+            {currentYearData ? (
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">
+                {activePlanYear} Theme • {currentYearData.theme}
+              </p>
+            ) : (
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">
+                Deeper Life Bible Church • National & Location Operations
+              </p>
+            )}
             <h2 className="text-xl font-bold text-slate-900 mt-0.5">
               Welcome{viewerName.trim() ? `, ${viewerName.trim()}` : ' to DLBC Poland'}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
               {accessLevel === 'public_member'
-                ? 'You are viewing the public portal (Notice Board, Ministering Rosters & Annual Plan). Click "Special Entry" in the top bar for leadership or worker access.'
+                ? 'You are viewing the public portal (Notice Board, Ministering Rosters & Strategic Plan). Click "Special Entry" in the top bar for leadership or worker access.'
                 : `Signed in with ${accessLevel === 'head_pastor' ? 'Head Pastor Full Access' : accessLevel === 'full_access' ? 'Full Oversight Access' : 'Usher / Data Entry Access'}.`}
             </p>
           </div>
@@ -1093,104 +1094,134 @@ export default function App() {
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <div className="flex items-center gap-2">
                     <Bell className="w-5 h-5 text-amber-600" />
-                    <h3 className="font-bold text-slate-900 text-base">Church Notice Board ({selectedPlanYear})</h3>
+                    <h3 className="font-bold text-slate-900 text-base">
+                      Church Notice Board {activePlanYear ? `(${activePlanYear})` : ''}
+                    </h3>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-slate-500 font-medium">Year:</label>
-                    <select
-                      value={selectedPlanYear}
-                      onChange={(e) => setSelectedPlanYear(e.target.value)}
-                      className="text-xs font-semibold bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5"
-                    >
-                      {availableYears.map(yr => (
-                        <option key={yr} value={yr}>{yr}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
 
-                {isFullAdmin && (
-                  <form onSubmit={handleAddNotice} className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 space-y-3">
-                    <div className="text-xs font-bold text-slate-800">Post New Announcement to {selectedPlanYear} Notice Board</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                      <input
-                        type="text"
-                        placeholder="Announcement title..."
-                        value={newNoticeForm.title}
-                        onChange={(e) => setNewNoticeForm({ ...newNoticeForm, title: e.target.value })}
-                        className="sm:col-span-2 px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                        required
-                      />
-                      <input
-                        type="date"
-                        value={newNoticeForm.date}
-                        onChange={(e) => setNewNoticeForm({ ...newNoticeForm, date: e.target.value })}
-                        className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <input
-                        type="text"
-                        placeholder="Audience (e.g., All Locations, Warsaw Workers)"
-                        value={newNoticeForm.audience}
-                        onChange={(e) => setNewNoticeForm({ ...newNoticeForm, audience: e.target.value })}
-                        className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                      />
+                  {availableYears.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-slate-500 font-medium">Year:</label>
                       <select
-                        value={newNoticeForm.priority}
-                        onChange={(e) => setNewNoticeForm({ ...newNoticeForm, priority: e.target.value })}
-                        className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                        value={activePlanYear}
+                        onChange={(e) => setSelectedPlanYear(e.target.value)}
+                        className="text-xs font-semibold bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5"
                       >
-                        <option value="Normal">Normal Notice</option>
-                        <option value="Urgent">Urgent / Priority</option>
+                        {availableYears.map(yr => (
+                          <option key={yr} value={yr}>{yr}</option>
+                        ))}
                       </select>
                     </div>
-                    <textarea
-                      rows={2}
-                      placeholder="Announcement details..."
-                      value={newNoticeForm.body}
-                      onChange={(e) => setNewNoticeForm({ ...newNoticeForm, body: e.target.value })}
-                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                      required
-                    />
-                    <button type="submit" className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
-                      Publish Notice
-                    </button>
-                  </form>
-                )}
+                  )}
+                </div>
 
-                {currentYearData.noticeBoard.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-6 text-center">No announcements posted for {selectedPlanYear} yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {currentYearData.noticeBoard.map(notice => (
-                      <div key={notice.id} className="border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition bg-white">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                notice.priority === 'Urgent' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                              }`}>
-                                {notice.priority}
-                              </span>
-                              <span className="text-xs text-slate-500">{notice.date} • {notice.audience}</span>
-                            </div>
-                            <h4 className="font-bold text-slate-900 text-sm mt-1">{notice.title}</h4>
-                          </div>
-                          {isFullAdmin && (
-                            <button
-                              onClick={() => handleDeleteNotice(notice.id)}
-                              className="text-slate-400 hover:text-red-600 p-1"
-                              title="Delete notice"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-600 mt-2 leading-relaxed">{notice.body}</p>
-                      </div>
-                    ))}
+                {!currentYearData ? (
+                  <div className="py-8 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/70 space-y-3">
+                    <p className="text-xs font-semibold text-slate-700">No year has been created yet for the Notice Board & Strategic Plan.</p>
+                    {isFullAdmin ? (
+                      <form onSubmit={handleCreateYear} className="inline-flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter year (e.g., 2026)"
+                          value={newYearInput}
+                          onChange={(e) => setNewYearInput(e.target.value)}
+                          className="w-40 px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                          required
+                        />
+                        <button type="submit" className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-lg">
+                          + Create Year
+                        </button>
+                      </form>
+                    ) : (
+                      <p className="text-xs text-slate-500">Leadership has not published an active year yet.</p>
+                    )}
                   </div>
+                ) : (
+                  <>
+                    {isFullAdmin && (
+                      <form onSubmit={handleAddNotice} className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 space-y-3">
+                        <div className="text-xs font-bold text-slate-800">Post New Announcement to {activePlanYear} Notice Board</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          <input
+                            type="text"
+                            placeholder="Announcement title..."
+                            value={newNoticeForm.title}
+                            onChange={(e) => setNewNoticeForm({ ...newNoticeForm, title: e.target.value })}
+                            className="sm:col-span-2 px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                            required
+                          />
+                          <input
+                            type="date"
+                            value={newNoticeForm.date}
+                            onChange={(e) => setNewNoticeForm({ ...newNoticeForm, date: e.target.value })}
+                            className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <input
+                            type="text"
+                            placeholder="Audience (e.g., All Locations, Warsaw Workers)"
+                            value={newNoticeForm.audience}
+                            onChange={(e) => setNewNoticeForm({ ...newNoticeForm, audience: e.target.value })}
+                            className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                          />
+                          <select
+                            value={newNoticeForm.priority}
+                            onChange={(e) => setNewNoticeForm({ ...newNoticeForm, priority: e.target.value })}
+                            className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                          >
+                            <option value="Normal">Normal Notice</option>
+                            <option value="Urgent">Urgent / Priority</option>
+                          </select>
+                        </div>
+                        <textarea
+                          rows={2}
+                          placeholder="Announcement details..."
+                          value={newNoticeForm.body}
+                          onChange={(e) => setNewNoticeForm({ ...newNoticeForm, body: e.target.value })}
+                          className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                          required
+                        />
+                        <button type="submit" className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                          Publish Notice
+                        </button>
+                      </form>
+                    )}
+
+                    {currentYearData.noticeBoard.length === 0 ? (
+                      <p className="text-xs text-slate-500 py-6 text-center">No announcements posted for {activePlanYear} yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {currentYearData.noticeBoard.map(notice => (
+                          <div key={notice.id} className="border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition bg-white">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                    notice.priority === 'Urgent' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {notice.priority}
+                                  </span>
+                                  <span className="text-xs text-slate-500">{notice.date} • {notice.audience}</span>
+                                </div>
+                                <h4 className="font-bold text-slate-900 text-sm mt-1">{notice.title}</h4>
+                              </div>
+                              {isFullAdmin && (
+                                <button
+                                  onClick={() => handleDeleteNotice(notice.id)}
+                                  className="text-slate-400 hover:text-red-600 p-1"
+                                  title="Delete notice"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-600 mt-2 leading-relaxed">{notice.body}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -1576,13 +1607,13 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: MULTI-YEAR STRATEGIC PLAN */}
+        {/* TAB 3: DYNAMIC MULTI-YEAR STRATEGIC PLAN (ADD OR DELETE ANY YEAR) */}
         {activeTab === 'plans' && (
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-5">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-4">
               <div>
                 <h3 className="font-bold text-slate-900 text-base">Annual Strategic Plan & Vision Tracker</h3>
-                <p className="text-xs text-slate-500">Switch between years or create a new annual plan (e.g., 2025, 2026, 2027, 2028)</p>
+                <p className="text-xs text-slate-500">Create, switch between, or delete annual plans freely</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -1591,7 +1622,7 @@ export default function App() {
                     key={yr}
                     onClick={() => setSelectedPlanYear(yr)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                      selectedPlanYear === yr
+                      activePlanYear === yr
                         ? 'bg-slate-900 text-amber-300 shadow'
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
@@ -1601,14 +1632,14 @@ export default function App() {
                 ))}
 
                 {isFullAdmin && (
-                  <form onSubmit={handleCreateYear} className="flex items-center gap-1.5 ml-2">
+                  <form onSubmit={handleCreateYear} className="flex items-center gap-1.5 ml-1">
                     <input
                       type="text"
-                      maxLength={4}
-                      placeholder="Add Year (2028)"
+                      placeholder="Add Year (e.g., 2026)"
                       value={newYearInput}
                       onChange={(e) => setNewYearInput(e.target.value)}
-                      className="w-32 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg"
+                      className="w-36 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg"
+                      required
                     />
                     <button type="submit" className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg">
                       + Year
@@ -1618,90 +1649,121 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-800 mb-1">
-                {selectedPlanYear} Prophetic & Operational Theme
-              </label>
-              {isFullAdmin ? (
-                <input
-                  type="text"
-                  value={currentYearData.theme}
-                  onChange={(e) => handleUpdateYearTheme(e.target.value)}
-                  className="w-full bg-white border border-amber-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none"
-                />
-              ) : (
-                <div className="text-sm font-bold text-slate-900">{currentYearData.theme}</div>
-              )}
-            </div>
-
-            {isFullAdmin && (
-              <form onSubmit={handleAddGoal} className="bg-slate-50 border border-slate-200 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-5 gap-2.5 items-end">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Quarter</label>
-                  <input
-                    type="text"
-                    value={newGoalForm.quarter}
-                    onChange={(e) => setNewGoalForm({ ...newGoalForm, quarter: e.target.value })}
-                    placeholder="Q1 2027"
-                    className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Strategic Milestone / Goal</label>
-                  <input
-                    type="text"
-                    value={newGoalForm.title}
-                    onChange={(e) => setNewGoalForm({ ...newGoalForm, title: e.target.value })}
-                    placeholder="e.g., Launch Gdańsk Outreach Fellowship"
-                    className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Target Metric</label>
-                  <input
-                    type="text"
-                    value={newGoalForm.target}
-                    onChange={(e) => setNewGoalForm({ ...newGoalForm, target: e.target.value })}
-                    placeholder="15 Members"
-                    className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                  />
-                </div>
-                <button type="submit" className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
-                  Add Goal
-                </button>
-              </form>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {currentYearData.goals.map(goal => (
-                <div key={goal.id} className="border border-slate-200 rounded-xl p-4 space-y-2.5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-bold">{goal.quarter}</span>
-                      <h4 className="font-bold text-slate-900 text-sm mt-1">{goal.title}</h4>
-                      <p className="text-xs text-slate-500">Target: {goal.target}</p>
-                    </div>
+            {!currentYearData ? (
+              <div className="py-12 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/70 space-y-3">
+                <BookOpen className="w-8 h-8 text-slate-400 mx-auto" />
+                <h4 className="font-bold text-slate-800 text-sm">No Strategic Plan Years Created Yet</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  {isFullAdmin
+                    ? 'Enter a year above (such as 2026 or 2027) and click "+ Year" to start setting your prophetic theme and goals.'
+                    : 'No annual strategic plan has been published yet.'}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-800">
+                      {activePlanYear} Prophetic & Operational Theme
+                    </label>
                     {isFullAdmin && (
-                      <button onClick={() => handleDeleteGoal(goal.id)} className="text-slate-400 hover:text-red-600">
-                        <Trash2 className="w-4 h-4" />
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteYear(activePlanYear)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Delete {activePlanYear} Entirely
                       </button>
                     )}
                   </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div className="bg-emerald-600 h-2 rounded-full" style={{ width: `${goal.progress}%` }} />
-                  </div>
-                  <div className="flex justify-between text-[11px] font-semibold text-slate-600">
-                    <span>Status: {goal.status}</span>
-                    <span>{goal.progress}%</span>
-                  </div>
+                  {isFullAdmin ? (
+                    <input
+                      type="text"
+                      value={currentYearData.theme}
+                      onChange={(e) => handleUpdateYearTheme(e.target.value)}
+                      placeholder={`Enter ${activePlanYear} theme...`}
+                      className="w-full bg-white border border-amber-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none"
+                    />
+                  ) : (
+                    <div className="text-sm font-bold text-slate-900">{currentYearData.theme}</div>
+                  )}
                 </div>
-              ))}
-            </div>
+
+                {isFullAdmin && (
+                  <form onSubmit={handleAddGoal} className="bg-slate-50 border border-slate-200 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-5 gap-2.5 items-end">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Quarter</label>
+                      <input
+                        type="text"
+                        value={newGoalForm.quarter}
+                        onChange={(e) => setNewGoalForm({ ...newGoalForm, quarter: e.target.value })}
+                        placeholder={`Q1 ${activePlanYear}`}
+                        className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Strategic Milestone / Goal</label>
+                      <input
+                        type="text"
+                        value={newGoalForm.title}
+                        onChange={(e) => setNewGoalForm({ ...newGoalForm, title: e.target.value })}
+                        placeholder="e.g., Launch Gdańsk Outreach Fellowship"
+                        className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Target Metric</label>
+                      <input
+                        type="text"
+                        value={newGoalForm.target}
+                        onChange={(e) => setNewGoalForm({ ...newGoalForm, target: e.target.value })}
+                        placeholder="15 Members"
+                        className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                      />
+                    </div>
+                    <button type="submit" className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                      Add Goal
+                    </button>
+                  </form>
+                )}
+
+                {currentYearData.goals.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-6 text-center">No strategic goals added for {activePlanYear} yet.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {currentYearData.goals.map(goal => (
+                      <div key={goal.id} className="border border-slate-200 rounded-xl p-4 space-y-2.5">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-bold">{goal.quarter}</span>
+                            <h4 className="font-bold text-slate-900 text-sm mt-1">{goal.title}</h4>
+                            <p className="text-xs text-slate-500">Target: {goal.target}</p>
+                          </div>
+                          {isFullAdmin && (
+                            <button onClick={() => handleDeleteGoal(goal.id)} className="text-slate-400 hover:text-red-600">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                          <div className="bg-emerald-600 h-2 rounded-full" style={{ width: `${goal.progress}%` }} />
+                        </div>
+                        <div className="flex justify-between text-[11px] font-semibold text-slate-600">
+                          <span>Status: {goal.status}</span>
+                          <span>{goal.progress}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
-        {/* TAB 4: ATTENDANCE ENTRY & SERVICE LOG (MALE/FEMALE & BOYS/GIRLS + FREE-TEXT) */}
+        {/* TAB 4: ATTENDANCE ENTRY & SERVICE LOG */}
         {activeTab === 'attendance' && canEnterData && (
           <div className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
@@ -1762,9 +1824,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* GENDER BREAKDOWN BOXES: ADULTS, YOUTH, CHILDREN */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {/* ADULTS */}
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-900">Adults</span>
@@ -1798,7 +1858,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* YOUTH */}
                   <div className="p-3.5 rounded-xl bg-emerald-50/50 border border-emerald-200 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-emerald-950">Youth</span>
@@ -1832,7 +1891,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* CHILDREN */}
                   <div className="p-3.5 rounded-xl bg-blue-50/50 border border-blue-200 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-blue-950">Children</span>
@@ -1981,7 +2039,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 5: NEWCOMERS (FREE-TEXT LOCATION) */}
+        {/* TAB 5: NEWCOMERS */}
         {activeTab === 'newcomers' && canEnterData && (
           <div className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
@@ -2121,7 +2179,7 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 6: GROWTH & SERVICE ANALYTICS (WITH GENDER METRICS & FREE-TEXT FILTERS) */}
+        {/* TAB 6: GROWTH & SERVICE ANALYTICS */}
         {activeTab === 'analytics' && isFullAdmin && (
           <div className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
@@ -2547,247 +2605,4 @@ export default function App() {
                     placeholder="Street, Apt, Postal Code, City"
                     value={newPersonForm.address}
                     onChange={(e) => setNewPersonForm({ ...newPersonForm, address: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Emergency Contact (Who to Contact)</label>
-                  <input
-                    type="text"
-                    placeholder="Contact Person Name"
-                    value={newPersonForm.emergencyName}
-                    onChange={(e) => setNewPersonForm({ ...newPersonForm, emergencyName: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Emergency Contact Number</label>
-                  <input
-                    type="text"
-                    placeholder="+48 500 000 999"
-                    value={newPersonForm.emergencyPhone}
-                    onChange={(e) => setNewPersonForm({ ...newPersonForm, emergencyPhone: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
-                    required
-                  />
-                </div>
-
-                <div className="sm:col-span-3">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Ministry Units / Fellowship Group (comma-separated)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Ushering, Choir, STS, Evangelism"
-                    value={newPersonForm.unitsText}
-                    onChange={(e) => setNewPersonForm({ ...newPersonForm, unitsText: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
-                  />
-                </div>
-
-                <div className="flex items-end">
-                  <button type="submit" className="w-full px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
-                    Save to {newPersonForm.category}s
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setDirectorySubTab('Worker')}
-                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition ${
-                      directorySubTab === 'Worker'
-                        ? 'bg-slate-900 text-amber-300 shadow'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    Workers Directory ({workersCount})
-                  </button>
-                  <button
-                    onClick={() => setDirectorySubTab('Member')}
-                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition ${
-                      directorySubTab === 'Member'
-                        ? 'bg-slate-900 text-amber-300 shadow'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                    }`}
-                  >
-                    Members Directory ({membersCount})
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
-                    <input
-                      type="text"
-                      placeholder="Search name, phone, address..."
-                      value={dirSearch}
-                      onChange={(e) => setDirSearch(e.target.value)}
-                      className="pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg w-52"
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    list="dlbc-locations-list"
-                    placeholder="Filter location..."
-                    value={dirLocationFilter}
-                    onChange={(e) => setDirLocationFilter(e.target.value)}
-                    className="px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg w-40"
-                  />
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="py-2.5">Full Name</th>
-                      <th className="py-2.5">Phone Number</th>
-                      <th className="py-2.5">Home Address</th>
-                      <th className="py-2.5">Emergency Contact (Who to Contact)</th>
-                      <th className="py-2.5">Location</th>
-                      <th className="py-2.5">Classification</th>
-                      <th className="py-2.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredDirectory.map(person => {
-                      const isEditing = editingPersonId === person.id;
-                      return (
-                        <tr key={person.id} className="hover:bg-slate-50 align-top">
-                          <td className="py-3 pr-2">
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={editPersonDraft.fullName}
-                                onChange={(e) => setEditPersonDraft({ ...editPersonDraft, fullName: e.target.value })}
-                                className="px-2 py-1 border border-slate-300 rounded w-full"
-                              />
-                            ) : (
-                              <div>
-                                <div className="font-bold text-slate-900">{person.fullName}</div>
-                                <div className="text-[11px] text-slate-500">{person.units.join(' • ')}</div>
-                              </div>
-                            )}
-                          </td>
-
-                          <td className="py-3 pr-2 font-mono">
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={editPersonDraft.phone}
-                                onChange={(e) => setEditPersonDraft({ ...editPersonDraft, phone: e.target.value })}
-                                className="px-2 py-1 border border-slate-300 rounded w-32"
-                              />
-                            ) : person.phone}
-                          </td>
-
-                          <td className="py-3 pr-2 text-slate-700">
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                value={editPersonDraft.address}
-                                onChange={(e) => setEditPersonDraft({ ...editPersonDraft, address: e.target.value })}
-                                className="px-2 py-1 border border-slate-300 rounded w-44"
-                              />
-                            ) : (
-                              <span className="inline-flex items-start gap-1">
-                                <Home className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                                {person.address || '—'}
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="py-3 pr-2">
-                            {isEditing ? (
-                              <div className="space-y-1">
-                                <input
-                                  type="text"
-                                  placeholder="Contact name"
-                                  value={editPersonDraft.emergencyName}
-                                  onChange={(e) => setEditPersonDraft({ ...editPersonDraft, emergencyName: e.target.value })}
-                                  className="px-2 py-1 border border-slate-300 rounded w-36 block"
-                                />
-                                <input
-                                  type="text"
-                                  placeholder="Contact phone"
-                                  value={editPersonDraft.emergencyPhone}
-                                  onChange={(e) => setEditPersonDraft({ ...editPersonDraft, emergencyPhone: e.target.value })}
-                                  className="px-2 py-1 border border-slate-300 rounded w-36 block"
-                                />
-                              </div>
-                            ) : (
-                              <div>
-                                <div className="font-semibold text-slate-800">{person.emergencyName || '—'}</div>
-                                <div className="font-mono text-[11px] text-slate-500">{person.emergencyPhone || ''}</div>
-                              </div>
-                            )}
-                          </td>
-
-                          <td className="py-3 pr-2">
-                            {isEditing ? (
-                              <input
-                                type="text"
-                                list="dlbc-locations-list"
-                                value={editPersonDraft.location}
-                                onChange={(e) => setEditPersonDraft({ ...editPersonDraft, location: e.target.value })}
-                                className="px-2 py-1 border border-slate-300 rounded w-28"
-                              />
-                            ) : person.location}
-                          </td>
-
-                          <td className="py-3 pr-2">
-                            <select
-                              value={person.category}
-                              onChange={(e) => handleToggleCategory(person.id, e.target.value)}
-                              className={`px-2 py-1 rounded text-[11px] font-bold border ${
-                                person.category === 'Worker'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                  : 'bg-blue-50 text-blue-800 border-blue-300'
-                              }`}
-                            >
-                              <option value="Worker">Worker</option>
-                              <option value="Member">Member</option>
-                            </select>
-                          </td>
-
-                          <td className="py-3 text-right whitespace-nowrap space-x-1.5">
-                            {isEditing ? (
-                              <>
-                                <button onClick={saveEditedPerson} className="px-2 py-1 bg-emerald-600 text-white rounded font-semibold">
-                                  Save
-                                </button>
-                                <button onClick={() => setEditingPersonId(null)} className="px-2 py-1 bg-slate-200 text-slate-700 rounded font-semibold">
-                                  Cancel
-                                </button>
-                              </>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  setEditingPersonId(person.id);
-                                  setEditPersonDraft({ ...person });
-                                }}
-                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-semibold"
-                              >
-                                Edit
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
-  );
-}
+                    className="w-full px-3 py-1.5 text-xs border border-slate-
