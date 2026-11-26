@@ -93,16 +93,20 @@ const getRecordCounts = (rec) => {
   const youthGirls = Number(rec.youthGirls) || 0;
   const childrenBoys = Number(rec.childrenBoys) || 0;
   const childrenGirls = Number(rec.childrenGirls) || 0;
+  const visitorMale = Number(rec.visitorMale) || 0;
+  const visitorFemale = Number(rec.visitorFemale) || 0;
 
   const hasGenderFields =
     'adultMale' in rec || 'adultFemale' in rec ||
     'youthBoys' in rec || 'youthGirls' in rec ||
-    'childrenBoys' in rec || 'childrenGirls' in rec;
+    'childrenBoys' in rec || 'childrenGirls' in rec ||
+    'visitorMale' in rec || 'visitorFemale' in rec;
 
   const adults = hasGenderFields ? adultMale + adultFemale : (Number(rec.adults) || 0);
   const youths = hasGenderFields ? youthBoys + youthGirls : (Number(rec.youths) || 0);
   const children = hasGenderFields ? childrenBoys + childrenGirls : (Number(rec.children) || 0);
-  const total = adults + youths + children;
+  const visitors = hasGenderFields ? visitorMale + visitorFemale : (Number(rec.visitors) || 0);
+  const total = adults + youths + children + visitors;
 
   return {
     adultMale,
@@ -111,9 +115,12 @@ const getRecordCounts = (rec) => {
     youthGirls,
     childrenBoys,
     childrenGirls,
+    visitorMale,
+    visitorFemale,
     adults,
     youths,
     children,
+    visitors,
     total
   };
 };
@@ -272,6 +279,9 @@ export default function App() {
     if (metricKey === 'children') return c.children;
     if (metricKey === 'childrenBoys') return c.childrenBoys;
     if (metricKey === 'childrenGirls') return c.childrenGirls;
+    if (metricKey === 'visitors') return c.visitors;
+    if (metricKey === 'visitorMale') return c.visitorMale;
+    if (metricKey === 'visitorFemale') return c.visitorFemale;
     if (metricKey === 'offeringPln') return Number(rec.offeringPln) || 0;
     return c.total;
   };
@@ -357,21 +367,26 @@ export default function App() {
         acc.childrenBoys += c.childrenBoys;
         acc.childrenGirls += c.childrenGirls;
         acc.children += c.children;
+        acc.visitorMale += c.visitorMale;
+        acc.visitorFemale += c.visitorFemale;
+        acc.visitors += c.visitors;
         return acc;
       },
       {
         adultMale: 0, adultFemale: 0, adults: 0,
         youthBoys: 0, youthGirls: 0, youths: 0,
-        childrenBoys: 0, childrenGirls: 0, children: 0
+        childrenBoys: 0, childrenGirls: 0, children: 0,
+        visitorMale: 0, visitorFemale: 0, visitors: 0
       }
     );
-    const grand = totals.adults + totals.youths + totals.children;
+    const grand = totals.adults + totals.youths + totals.children + totals.visitors;
     return {
       ...totals,
       grand,
       adultsPct: grand ? Math.round((totals.adults / grand) * 100) : 0,
       youthsPct: grand ? Math.round((totals.youths / grand) * 100) : 0,
-      childrenPct: grand ? Math.round((totals.children / grand) * 100) : 0
+      childrenPct: grand ? Math.round((totals.children / grand) * 100) : 0,
+      visitorsPct: grand ? Math.round((totals.visitors / grand) * 100) : 0
     };
   }, [filteredAttendance]);
 
@@ -676,6 +691,8 @@ export default function App() {
     youthGirls: '',
     childrenBoys: '',
     childrenGirls: '',
+    visitorMale: '',
+    visitorFemale: '',
     offeringPln: '',
     recordedBy: localStorage.getItem('dlbc_viewer_name') || ''
   });
@@ -690,6 +707,8 @@ export default function App() {
     const youthGirls = Number(attForm.youthGirls) || 0;
     const childrenBoys = Number(attForm.childrenBoys) || 0;
     const childrenGirls = Number(attForm.childrenGirls) || 0;
+    const visitorMale = Number(attForm.visitorMale) || 0;
+    const visitorFemale = Number(attForm.visitorFemale) || 0;
 
     const entry = {
       id: 'att-' + Date.now(),
@@ -703,9 +722,12 @@ export default function App() {
       youthGirls,
       childrenBoys,
       childrenGirls,
+      visitorMale,
+      visitorFemale,
       adults: adultMale + adultFemale,
       youths: youthBoys + youthGirls,
       children: childrenBoys + childrenGirls,
+      visitors: visitorMale + visitorFemale,
       offeringPln: Number(attForm.offeringPln) || 0,
       recordedBy: recorder
     };
@@ -718,6 +740,8 @@ export default function App() {
       youthGirls: '',
       childrenBoys: '',
       childrenGirls: '',
+      visitorMale: '',
+      visitorFemale: '',
       offeringPln: '',
       recordedBy: recorder
     });
@@ -1768,7 +1792,7 @@ export default function App() {
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
               <h3 className="font-bold text-slate-900 text-base mb-1">Log Service Attendance</h3>
               <p className="text-xs text-slate-500 mb-4">
-                Enter your Location and Service Type manually, and log Adults (Male & Female), Youth (Boys & Girls), and Children (Boys & Girls)
+                Enter your Location and Service Type manually, and log Adults (Male & Female), Youth (Boys & Girls), Children (Boys & Girls), and Visitors (Male & Female)
               </p>
 
               <form onSubmit={handleAddAttendance} className="space-y-4">
@@ -1823,7 +1847,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-slate-900">Adults</span>
@@ -1922,6 +1946,39 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+
+                  <div className="p-3.5 rounded-xl bg-purple-50/50 border border-purple-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-purple-950">Visitors</span>
+                      <span className="text-[11px] font-semibold text-purple-700">
+                        Subtotal: {(Number(attForm.visitorMale) || 0) + (Number(attForm.visitorFemale) || 0)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Male</label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={attForm.visitorMale}
+                          onChange={(e) => setAttForm({ ...attForm, visitorMale: e.target.value })}
+                          className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Female</label>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={attForm.visitorFemale}
+                          onChange={(e) => setAttForm({ ...attForm, visitorFemale: e.target.value })}
+                          className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-1">
@@ -1934,7 +1991,9 @@ export default function App() {
                           (Number(attForm.youthBoys) || 0) +
                           (Number(attForm.youthGirls) || 0) +
                           (Number(attForm.childrenBoys) || 0) +
-                          (Number(attForm.childrenGirls) || 0)}
+                          (Number(attForm.childrenGirls) || 0) +
+                          (Number(attForm.visitorMale) || 0) +
+                          (Number(attForm.visitorFemale) || 0)}
                       </span>
                     </div>
 
@@ -1971,7 +2030,7 @@ export default function App() {
               {attendance.length === 0 ? (
                 <div className="py-10 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/60">
                   <p className="text-xs font-semibold text-slate-700">No service attendance records logged yet.</p>
-                  <p className="text-xs text-slate-500 mt-1">Use the form above to record any service with Adults (M/F), Youth (B/G), and Children (B/G).</p>
+                  <p className="text-xs text-slate-500 mt-1">Use the form above to record any service with Adults (M/F), Youth (B/G), Children (B/G), and Visitors (M/F).</p>
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse text-xs">
@@ -1983,6 +2042,7 @@ export default function App() {
                       <th className="py-2 pr-2">Adults (M / F)</th>
                       <th className="py-2 pr-2">Youth (B / G)</th>
                       <th className="py-2 pr-2">Children (B / G)</th>
+                      <th className="py-2 pr-2">Visitors (M / F)</th>
                       <th className="py-2 pr-2 font-bold text-slate-800">Total</th>
                       {isFullAdmin && <th className="py-2 pr-2">Offering</th>}
                       <th className="py-2 pr-2">Recorded By</th>
@@ -2012,6 +2072,10 @@ export default function App() {
                           <td className="py-2.5 pr-2 whitespace-nowrap">
                             <span className="font-bold text-blue-800">{c.children}</span>{' '}
                             <span className="text-slate-500">({c.childrenBoys}B / {c.childrenGirls}G)</span>
+                          </td>
+                          <td className="py-2.5 pr-2 whitespace-nowrap">
+                            <span className="font-bold text-purple-800">{c.visitors}</span>{' '}
+                            <span className="text-slate-500">({c.visitorMale}M / {c.visitorFemale}F)</span>
                           </td>
                           <td className="py-2.5 pr-2 font-extrabold text-slate-900">{c.total}</td>
                           {isFullAdmin && <td className="py-2.5 pr-2 font-mono whitespace-nowrap">{rec.offeringPln ? `${rec.offeringPln} PLN` : '—'}</td>}
@@ -2188,7 +2252,7 @@ export default function App() {
                     <TrendingUp className="w-5 h-5 text-emerald-600" />
                     Flexible Church Data & Growth Insights
                   </h3>
-                  <p className="text-xs text-slate-500">Analyze attendance by Age, Gender (Male/Female, Boys/Girls), Service Type, or Location</p>
+                  <p className="text-xs text-slate-500">Analyze attendance by Age, Gender (Male/Female, Boys/Girls), Visitors, Service Type, or Location</p>
                 </div>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                   <ShieldCheck className="w-3.5 h-3.5" />
@@ -2207,7 +2271,7 @@ export default function App() {
                     <option value="trend">📈 Growth Trend (Line & Area)</option>
                     <option value="histogram">📊 Histogram (Frequency Distribution)</option>
                     <option value="service_compare">⚖️ Service-by-Service Comparison</option>
-                    <option value="demographics">👨‍👩‍👧‍👦 Age & Gender Breakdown</option>
+                    <option value="demographics">👨‍👩‍👧‍👦 Age, Gender & Visitors Breakdown</option>
                     <option value="location_split">📍 Location Comparison</option>
                   </select>
                 </div>
@@ -2219,7 +2283,7 @@ export default function App() {
                     onChange={(e) => setAnalyticsMetric(e.target.value)}
                     className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50 text-slate-900"
                   >
-                    <option value="total">Total Attendance (All Ages)</option>
+                    <option value="total">Total Attendance (All Groups)</option>
                     <option value="adults">Adults (Male + Female)</option>
                     <option value="adultMale">Adult Males Only</option>
                     <option value="adultFemale">Adult Females Only</option>
@@ -2229,6 +2293,9 @@ export default function App() {
                     <option value="children">Children (Boys + Girls)</option>
                     <option value="childrenBoys">Children Boys Only</option>
                     <option value="childrenGirls">Children Girls Only</option>
+                    <option value="visitors">Visitors (Male + Female)</option>
+                    <option value="visitorMale">Visitor Males Only</option>
+                    <option value="visitorFemale">Visitor Females Only</option>
                     <option value="offeringPln">Offering (PLN)</option>
                   </select>
                 </div>
@@ -2458,15 +2525,15 @@ export default function App() {
                 {analyticsChartType === 'demographics' && (
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-bold text-slate-900 text-sm">Congregation Age & Gender Breakdown</h4>
-                      <p className="text-xs text-slate-500">Cumulative attendance composition across Adults (M/F), Youth (B/G), and Children (B/G)</p>
+                      <h4 className="font-bold text-slate-900 text-sm">Congregation Age, Gender & Visitors Breakdown</h4>
+                      <p className="text-xs text-slate-500">Cumulative attendance composition across Adults (M/F), Youth (B/G), Children (B/G), and Visitors (M/F)</p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
                         <div className="text-xs font-semibold text-slate-500">Adults Total</div>
                         <div className="text-2xl font-extrabold text-slate-900">{demographicSummary.adults}</div>
-                        <div className="text-xs font-bold text-amber-700">{demographicSummary.adultsPct}% of congregation</div>
+                        <div className="text-xs font-bold text-amber-700">{demographicSummary.adultsPct}% of attendance</div>
                         <div className="pt-2 border-t border-slate-200 flex justify-between text-xs text-slate-700">
                           <span>Male: <strong>{demographicSummary.adultMale}</strong></span>
                           <span>Female: <strong>{demographicSummary.adultFemale}</strong></span>
@@ -2476,7 +2543,7 @@ export default function App() {
                       <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-200 space-y-2">
                         <div className="text-xs font-semibold text-emerald-800">Youth Total</div>
                         <div className="text-2xl font-extrabold text-emerald-900">{demographicSummary.youths}</div>
-                        <div className="text-xs font-bold text-emerald-700">{demographicSummary.youthsPct}% of congregation</div>
+                        <div className="text-xs font-bold text-emerald-700">{demographicSummary.youthsPct}% of attendance</div>
                         <div className="pt-2 border-t border-emerald-200 flex justify-between text-xs text-slate-700">
                           <span>Boys: <strong>{demographicSummary.youthBoys}</strong></span>
                           <span>Girls: <strong>{demographicSummary.youthGirls}</strong></span>
@@ -2486,10 +2553,20 @@ export default function App() {
                       <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-200 space-y-2">
                         <div className="text-xs font-semibold text-blue-800">Children Total</div>
                         <div className="text-2xl font-extrabold text-blue-900">{demographicSummary.children}</div>
-                        <div className="text-xs font-bold text-blue-700">{demographicSummary.childrenPct}% of congregation</div>
+                        <div className="text-xs font-bold text-blue-700">{demographicSummary.childrenPct}% of attendance</div>
                         <div className="pt-2 border-t border-blue-200 flex justify-between text-xs text-slate-700">
                           <span>Boys: <strong>{demographicSummary.childrenBoys}</strong></span>
                           <span>Girls: <strong>{demographicSummary.childrenGirls}</strong></span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-purple-50/50 border border-purple-200 space-y-2">
+                        <div className="text-xs font-semibold text-purple-800">Visitors Total</div>
+                        <div className="text-2xl font-extrabold text-purple-900">{demographicSummary.visitors}</div>
+                        <div className="text-xs font-bold text-purple-700">{demographicSummary.visitorsPct}% of attendance</div>
+                        <div className="pt-2 border-t border-purple-200 flex justify-between text-xs text-slate-700">
+                          <span>Male: <strong>{demographicSummary.visitorMale}</strong></span>
+                          <span>Female: <strong>{demographicSummary.visitorFemale}</strong></span>
                         </div>
                       </div>
                     </div>
