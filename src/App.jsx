@@ -47,8 +47,59 @@ const INITIAL_NEWCOMERS = [
   { id: 'nc6', fullName: 'Samuel Adjei', phone: '+48 512 334 106', location: 'Warsaw', visitDate: '2026-07-12', invitedBy: 'Pastor Dare', assignedFollowUp: 'Bro David', status: 'Established', notes: 'Summer outreach convert — archived after Q3 follow-up', archived: true }
 ];
 
-// No hardcoded years — starts clean so users create & delete years freely
+// No hardcoded years or pre-populated quarter plans — starts clean so users type & manage freely
 const INITIAL_PLANS_AND_NOTICES = {};
+
+const DEFAULT_QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'];
+
+const createEmptyYearPlan = (yr) => ({
+  theme: '',
+  noticeBoard: [],
+  quarters: {
+    Q1: { team: '', activities: [] },
+    Q2: { team: '', activities: [] },
+    Q3: { team: '', activities: [] },
+    Q4: { team: '', activities: [] }
+  }
+});
+
+const normalizeYearPlan = (yr, raw) => {
+  const base = createEmptyYearPlan(yr);
+  if (!raw || typeof raw !== 'object') return base;
+
+  const normalizedQuarters = { ...base.quarters };
+  if (raw.quarters && typeof raw.quarters === 'object') {
+    Object.entries(raw.quarters).forEach(([qKey, qVal]) => {
+      normalizedQuarters[qKey] = {
+        team: typeof qVal?.team === 'string' ? qVal.team : '',
+        activities: Array.isArray(qVal?.activities) ? qVal.activities : []
+      };
+    });
+  }
+
+  // Migrate legacy flat goals array if present in older saved data
+  if (Array.isArray(raw.goals) && raw.goals.length > 0) {
+    raw.goals.forEach(g => {
+      const qKey = (g.quarter || 'Q1').trim() || 'Q1';
+      if (!normalizedQuarters[qKey]) {
+        normalizedQuarters[qKey] = { team: '', activities: [] };
+      }
+      normalizedQuarters[qKey].activities.push({
+        id: g.id || 'act-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        activity: g.title || '',
+        date: g.date || '',
+        target: g.target || '',
+        executionStatus: g.executionStatus || (g.progress >= 100 ? 'executed' : 'not_executed')
+      });
+    });
+  }
+
+  return {
+    theme: typeof raw.theme === 'string' ? raw.theme : '',
+    noticeBoard: Array.isArray(raw.noticeBoard) ? raw.noticeBoard : [],
+    quarters: normalizedQuarters
+  };
+};
 
 const INITIAL_ROSTERS = [
   {
@@ -151,8 +202,14 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_NEWCOMERS;
   });
   const [plansByYear, setPlansByYear] = useState(() => {
-    const saved = localStorage.getItem('dlbc_plans_v3');
-    return saved ? JSON.parse(saved) : INITIAL_PLANS_AND_NOTICES;
+    const saved = localStorage.getItem('dlbc_plans_v4') || localStorage.getItem('dlbc_plans_v3');
+    if (!saved) return INITIAL_PLANS_AND_NOTICES;
+    const parsed = JSON.parse(saved);
+    const out = {};
+    Object.entries(parsed).forEach(([yr, val]) => {
+      out[yr] = normalizeYearPlan(yr, val);
+    });
+    return out;
   });
   const [rosters, setRosters] = useState(() => {
     const saved = localStorage.getItem('dlbc_rosters_v2');
@@ -163,7 +220,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('dlbc_weekly_services_v1', JSON.stringify(weeklyServices)); }, [weeklyServices]);
   useEffect(() => { localStorage.setItem('dlbc_attendance_v4', JSON.stringify(attendance)); }, [attendance]);
   useEffect(() => { localStorage.setItem('dlbc_newcomers_v2', JSON.stringify(newcomers)); }, [newcomers]);
-  useEffect(() => { localStorage.setItem('dlbc_plans_v3', JSON.stringify(plansByYear)); }, [plansByYear]);
+  useEffect(() => { localStorage.setItem('dlbc_plans_v4', JSON.stringify(plansByYear)); }, [plansByYear]);
   useEffect(() => { localStorage.setItem('dlbc_rosters_v2', JSON.stringify(rosters)); }, [rosters]);
 
   const isFullAdmin = accessLevel === 'head_pastor' || accessLevel === 'full_access';
@@ -261,7 +318,7 @@ export default function App() {
   };
 
   // ==========================================================================
-  // ANALYTICS COMPUTATIONS (STREAMLINED + STACKED COHORT & VISITOR MIX)
+  // ANALYTICS COMPUTATIONS
   // ==========================================================================
   const [analyticsLocation, setAnalyticsLocation] = useState('');
   const [analyticsChartType, setAnalyticsChartType] = useState('trend');
@@ -518,12 +575,12 @@ export default function App() {
   };
 
   // ==========================================================================
-  // DYNAMIC MULTI-YEAR STRATEGIC PLAN & NOTICE BOARD (NO HARDCODED YEARS)
+  // CLICK-TO-VIEW QUARTER WORKSPACE (ZERO HARDCODING, FULL TYPING FLEXIBILITY)
   // ==========================================================================
   const availableYears = useMemo(() => Object.keys(plansByYear).sort(), [plansByYear]);
 
   const [selectedPlanYear, setSelectedPlanYear] = useState(() => {
-    const saved = localStorage.getItem('dlbc_plans_v3');
+    const saved = localStorage.getItem('dlbc_plans_v4') || localStorage.getItem('dlbc_plans_v3');
     if (saved) {
       const keys = Object.keys(JSON.parse(saved)).sort();
       return keys.length ? keys[keys.length - 1] : '';
@@ -531,15 +588,42 @@ export default function App() {
     return '';
   });
   const [newYearInput, setNewYearInput] = useState('');
-  const [newNoticeForm, setNewNoticeForm] = useState({ title: '', date: '', audience: 'All Locations', priority: 'Normal', body: '' });
-  const [newGoalForm, setNewGoalForm] = useState({ quarter: 'Q1', title: '', target: '', progress: 0, status: 'Planned' });
+  const [selectedQuarterTab, setSelectedQuarterTab] = useState('Q1');
+  const [customQuarterInput, setCustomQuarterInput] = useState('');
+  const [newNoticeForm, setNewNoticeForm] = useState({ title: '', date: '', audience: '', priority: 'Normal', body: '' });
+  const [newActivityForm, setNewActivityForm] = useState({
+    activity: '',
+    date: '',
+    target: '',
+    executionStatus: 'not_executed'
+  });
 
   const activePlanYear = useMemo(() => {
     if (selectedPlanYear && plansByYear[selectedPlanYear]) return selectedPlanYear;
     return availableYears.length > 0 ? availableYears[availableYears.length - 1] : '';
   }, [selectedPlanYear, plansByYear, availableYears]);
 
-  const currentYearData = activePlanYear ? plansByYear[activePlanYear] : null;
+  const currentYearData = useMemo(() => {
+    if (!activePlanYear || !plansByYear[activePlanYear]) return null;
+    return normalizeYearPlan(activePlanYear, plansByYear[activePlanYear]);
+  }, [activePlanYear, plansByYear]);
+
+  const yearQuarterKeys = useMemo(() => {
+    if (!currentYearData) return DEFAULT_QUARTERS;
+    const keys = Object.keys(currentYearData.quarters || {});
+    const merged = Array.from(new Set([...DEFAULT_QUARTERS, ...keys]));
+    return merged;
+  }, [currentYearData]);
+
+  const activeQuarterKey = useMemo(() => {
+    if (selectedQuarterTab && yearQuarterKeys.includes(selectedQuarterTab)) return selectedQuarterTab;
+    return yearQuarterKeys[0] || 'Q1';
+  }, [selectedQuarterTab, yearQuarterKeys]);
+
+  const activeQuarterData = useMemo(() => {
+    if (!currentYearData) return { team: '', activities: [] };
+    return currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
+  }, [currentYearData, activeQuarterKey]);
 
   const handleCreateYear = (e) => {
     e.preventDefault();
@@ -548,20 +632,17 @@ export default function App() {
     if (!plansByYear[yr]) {
       setPlansByYear({
         ...plansByYear,
-        [yr]: {
-          theme: `${yr}: Strategic Church Plan & Vision`,
-          noticeBoard: [],
-          goals: []
-        }
+        [yr]: createEmptyYearPlan(yr)
       });
     }
     setSelectedPlanYear(yr);
+    setSelectedQuarterTab('Q1');
     setNewYearInput('');
   };
 
   const handleDeleteYear = (yrToDelete) => {
     if (!yrToDelete || !plansByYear[yrToDelete]) return;
-    const confirmed = window.confirm(`Delete ${yrToDelete} completely, including its theme, notice board posts, and strategic goals?`);
+    const confirmed = window.confirm(`Delete ${yrToDelete} completely, including its theme, notice board posts, and all quarter plans?`);
     if (!confirmed) return;
 
     const updated = { ...plansByYear };
@@ -580,6 +661,135 @@ export default function App() {
     });
   };
 
+  const handleAddQuarterTab = (e) => {
+    e.preventDefault();
+    const qLabel = customQuarterInput.trim();
+    if (!qLabel || !activePlanYear || !currentYearData) return;
+    const nextQuarters = {
+      ...currentYearData.quarters,
+      [qLabel]: currentYearData.quarters[qLabel] || { team: '', activities: [] }
+    };
+    setPlansByYear({
+      ...plansByYear,
+      [activePlanYear]: {
+        ...currentYearData,
+        quarters: nextQuarters
+      }
+    });
+    setSelectedQuarterTab(qLabel);
+    setCustomQuarterInput('');
+  };
+
+  const handleUpdateQuarterTeam = (newTeam) => {
+    if (!activePlanYear || !currentYearData) return;
+    const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
+    setPlansByYear({
+      ...plansByYear,
+      [activePlanYear]: {
+        ...currentYearData,
+        quarters: {
+          ...currentYearData.quarters,
+          [activeQuarterKey]: {
+            ...existingQ,
+            team: newTeam
+          }
+        }
+      }
+    });
+  };
+
+  const handleAddQuarterActivity = (e) => {
+    e.preventDefault();
+    if (!activePlanYear || !currentYearData || !newActivityForm.activity.trim()) return;
+    const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
+    const createdActivity = {
+      id: 'act-' + Date.now(),
+      activity: newActivityForm.activity.trim(),
+      date: newActivityForm.date.trim(),
+      target: newActivityForm.target.trim(),
+      executionStatus: newActivityForm.executionStatus // 'executed' | 'not_executed'
+    };
+    setPlansByYear({
+      ...plansByYear,
+      [activePlanYear]: {
+        ...currentYearData,
+        quarters: {
+          ...currentYearData.quarters,
+          [activeQuarterKey]: {
+            ...existingQ,
+            activities: [...existingQ.activities, createdActivity]
+          }
+        }
+      }
+    });
+    setNewActivityForm({
+      activity: '',
+      date: '',
+      target: '',
+      executionStatus: 'not_executed'
+    });
+  };
+
+  const handleSetActivityStatus = (activityId, statusValue) => {
+    if (!activePlanYear || !currentYearData) return;
+    const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
+    const updatedActivities = existingQ.activities.map(item =>
+      item.id === activityId ? { ...item, executionStatus: statusValue } : item
+    );
+    setPlansByYear({
+      ...plansByYear,
+      [activePlanYear]: {
+        ...currentYearData,
+        quarters: {
+          ...currentYearData.quarters,
+          [activeQuarterKey]: {
+            ...existingQ,
+            activities: updatedActivities
+          }
+        }
+      }
+    });
+  };
+
+  const handleUpdateActivityField = (activityId, field, val) => {
+    if (!activePlanYear || !currentYearData) return;
+    const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
+    const updatedActivities = existingQ.activities.map(item =>
+      item.id === activityId ? { ...item, [field]: val } : item
+    );
+    setPlansByYear({
+      ...plansByYear,
+      [activePlanYear]: {
+        ...currentYearData,
+        quarters: {
+          ...currentYearData.quarters,
+          [activeQuarterKey]: {
+            ...existingQ,
+            activities: updatedActivities
+          }
+        }
+      }
+    });
+  };
+
+  const handleDeleteQuarterActivity = (activityId) => {
+    if (!activePlanYear || !currentYearData) return;
+    const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
+    setPlansByYear({
+      ...plansByYear,
+      [activePlanYear]: {
+        ...currentYearData,
+        quarters: {
+          ...currentYearData.quarters,
+          [activeQuarterKey]: {
+            ...existingQ,
+            activities: existingQ.activities.filter(item => item.id !== activityId)
+          }
+        }
+      }
+    });
+  };
+
   const handleAddNotice = (e) => {
     e.preventDefault();
     if (!activePlanYear || !currentYearData || !newNoticeForm.title.trim()) return;
@@ -595,7 +805,7 @@ export default function App() {
         noticeBoard: [notice, ...currentYearData.noticeBoard]
       }
     });
-    setNewNoticeForm({ title: '', date: '', audience: 'All Locations', priority: 'Normal', body: '' });
+    setNewNoticeForm({ title: '', date: '', audience: '', priority: 'Normal', body: '' });
   };
 
   const handleDeleteNotice = (noticeId) => {
@@ -605,31 +815,6 @@ export default function App() {
       [activePlanYear]: {
         ...currentYearData,
         noticeBoard: currentYearData.noticeBoard.filter(n => n.id !== noticeId)
-      }
-    });
-  };
-
-  const handleAddGoal = (e) => {
-    e.preventDefault();
-    if (!activePlanYear || !currentYearData || !newGoalForm.title.trim()) return;
-    const goal = { id: 'goal-' + Date.now(), ...newGoalForm, progress: Number(newGoalForm.progress) };
-    setPlansByYear({
-      ...plansByYear,
-      [activePlanYear]: {
-        ...currentYearData,
-        goals: [...currentYearData.goals, goal]
-      }
-    });
-    setNewGoalForm({ quarter: 'Q1', title: '', target: '', progress: 0, status: 'Planned' });
-  };
-
-  const handleDeleteGoal = (goalId) => {
-    if (!activePlanYear || !currentYearData) return;
-    setPlansByYear({
-      ...plansByYear,
-      [activePlanYear]: {
-        ...currentYearData,
-        goals: currentYearData.goals.filter(g => g.id !== goalId)
       }
     });
   };
@@ -653,7 +838,7 @@ export default function App() {
     recordedBy: localStorage.getItem('dlbc_viewer_name') || ''
   });
 
-  const [attBrowseMode, setAttBrowseMode] = useState('date'); // 'date' | 'month'
+  const [attBrowseMode, setAttBrowseMode] = useState('date');
   const [selectedAttDate, setSelectedAttDate] = useState('');
   const [selectedAttMonth, setSelectedAttMonth] = useState('');
 
@@ -929,6 +1114,10 @@ export default function App() {
   const membersCount = people.filter(p => p.category === 'Member').length;
   const archivedNewcomersCount = newcomers.filter(n => n.archived).length;
 
+  const quarterActivities = activeQuarterData.activities || [];
+  const executedCount = quarterActivities.filter(a => a.executionStatus === 'executed').length;
+  const notExecutedCount = quarterActivities.filter(a => a.executionStatus === 'not_executed').length;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <datalist id="dlbc-locations-list">
@@ -1055,7 +1244,7 @@ export default function App() {
                   type="text"
                   value={viewerName}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  placeholder="e.g., Pastor Dare, Pastor William, Bro Pelumi"
+                  placeholder="Type your name..."
                   className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-amber-500"
                   required
                 />
@@ -1103,9 +1292,9 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            {currentYearData ? (
+            {currentYearData && currentYearData.theme ? (
               <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">
-                {activePlanYear} Theme • {currentYearData.theme}
+                {activePlanYear} • {currentYearData.theme}
               </p>
             ) : (
               <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">
@@ -1176,7 +1365,7 @@ export default function App() {
                       <form onSubmit={handleCreateYear} className="inline-flex items-center gap-2">
                         <input
                           type="text"
-                          placeholder="Enter year (e.g., 2026)"
+                          placeholder="Type year..."
                           value={newYearInput}
                           onChange={(e) => setNewYearInput(e.target.value)}
                           className="w-40 px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
@@ -1214,7 +1403,7 @@ export default function App() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           <input
                             type="text"
-                            placeholder="Audience (e.g., All Locations, Warsaw Workers)"
+                            placeholder="Audience (type freely)..."
                             value={newNoticeForm.audience}
                             onChange={(e) => setNewNoticeForm({ ...newNoticeForm, audience: e.target.value })}
                             className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
@@ -1256,7 +1445,9 @@ export default function App() {
                                   }`}>
                                     {notice.priority}
                                   </span>
-                                  <span className="text-xs text-slate-500">{notice.date} • {notice.audience}</span>
+                                  <span className="text-xs text-slate-500">
+                                    {notice.date}{notice.audience ? ` • ${notice.audience}` : ''}
+                                  </span>
                                 </div>
                                 <h4 className="font-bold text-slate-900 text-sm mt-1">{notice.title}</h4>
                               </div>
@@ -1318,7 +1509,7 @@ export default function App() {
                         </div>
                         <input
                           type="text"
-                          placeholder="Service Name (e.g., Sunday Worship Service)"
+                          placeholder="Service name..."
                           value={svc.name}
                           onChange={(e) => handleServiceDraftChange(svc.id, 'name', e.target.value)}
                           className="w-full px-2.5 py-1.5 text-xs font-bold border border-slate-300 rounded-lg bg-white"
@@ -1326,7 +1517,7 @@ export default function App() {
                         />
                         <input
                           type="text"
-                          placeholder="Day, Time & Venue (e.g., Wednesdays • 18:30 • House Cells)"
+                          placeholder="Day, time & venue..."
                           value={svc.schedule}
                           onChange={(e) => handleServiceDraftChange(svc.id, 'schedule', e.target.value)}
                           className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
@@ -1431,7 +1622,7 @@ export default function App() {
                   <input
                     type="text"
                     list="dlbc-service-types-list"
-                    placeholder="All services (or type to filter...)"
+                    placeholder="Type service name to filter..."
                     value={rosterServiceFilter}
                     onChange={(e) => setRosterServiceFilter(e.target.value)}
                     className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50"
@@ -1443,7 +1634,7 @@ export default function App() {
                   <input
                     type="text"
                     list="dlbc-locations-list"
-                    placeholder="All locations (or type city/center...)"
+                    placeholder="Type location to filter..."
                     value={rosterLocationFilter}
                     onChange={(e) => setRosterLocationFilter(e.target.value)}
                     className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50"
@@ -1481,7 +1672,7 @@ export default function App() {
                       <input
                         type="text"
                         list="dlbc-service-types-list"
-                        placeholder="e.g., Sunday Worship, Night Vigil, Easter Retreat..."
+                        placeholder="Type service or program name..."
                         value={rosterDraft.serviceType}
                         onChange={(e) => setRosterDraft({ ...rosterDraft, serviceType: e.target.value })}
                         className="w-full px-3 py-2 text-xs font-bold border border-slate-300 rounded-lg bg-amber-50"
@@ -1505,7 +1696,7 @@ export default function App() {
                       <input
                         type="text"
                         list="dlbc-locations-list"
-                        placeholder="Type location (e.g., Warsaw, Gdańsk, Online...)"
+                        placeholder="Type location..."
                         value={rosterDraft.location}
                         onChange={(e) => setRosterDraft({ ...rosterDraft, location: e.target.value })}
                         className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg"
@@ -1537,14 +1728,14 @@ export default function App() {
                       <div key={idx} className="grid grid-cols-12 gap-2 items-center">
                         <input
                           type="text"
-                          placeholder="09:30"
+                          placeholder="Time..."
                           value={row.time}
                           onChange={(e) => handleDraftSlotChange(idx, 'time', e.target.value)}
                           className="col-span-3 sm:col-span-2 px-2.5 py-1.5 text-xs font-mono border border-slate-300 rounded-lg bg-white"
                         />
                         <input
                           type="text"
-                          placeholder="Duty / Ministration Slot"
+                          placeholder="Duty / Ministration Slot..."
                           value={row.slot}
                           onChange={(e) => handleDraftSlotChange(idx, 'slot', e.target.value)}
                           className="col-span-9 sm:col-span-5 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
@@ -1661,13 +1852,13 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: DYNAMIC MULTI-YEAR STRATEGIC PLAN (ADD OR DELETE ANY YEAR) */}
+        {/* TAB 3: CLICK-TO-VIEW QUARTER STRATEGIC PLAN (ZERO LITTER, FULL TYPING FLEXIBILITY) */}
         {activeTab === 'plans' && (
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-5">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-4">
               <div>
                 <h3 className="font-bold text-slate-900 text-base">Annual Strategic Plan & Vision Tracker</h3>
-                <p className="text-xs text-slate-500">Create, switch between, or delete annual plans freely</p>
+                <p className="text-xs text-slate-500">Click a quarter tab to view its driving team, activities, dates, targets, and execution ticks</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -1681,7 +1872,7 @@ export default function App() {
                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
-                    {yr} Plan
+                    {yr}
                   </button>
                 ))}
 
@@ -1689,10 +1880,10 @@ export default function App() {
                   <form onSubmit={handleCreateYear} className="flex items-center gap-1.5 ml-1">
                     <input
                       type="text"
-                      placeholder="Add Year (e.g., 2026)"
+                      placeholder="Type year..."
                       value={newYearInput}
                       onChange={(e) => setNewYearInput(e.target.value)}
-                      className="w-36 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg"
+                      className="w-32 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg"
                       required
                     />
                     <button type="submit" className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg">
@@ -1706,19 +1897,20 @@ export default function App() {
             {!currentYearData ? (
               <div className="py-12 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/70 space-y-3">
                 <BookOpen className="w-8 h-8 text-slate-400 mx-auto" />
-                <h4 className="font-bold text-slate-800 text-sm">No Strategic Plan Years Created Yet</h4>
+                <h4 className="font-bold text-slate-800 text-sm">No Strategic Plan Year Created Yet</h4>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
                   {isFullAdmin
-                    ? 'Enter a year above (such as 2026 or 2027) and click "+ Year" to start setting your prophetic theme and goals.'
+                    ? 'Type a year above and click "+ Year" to begin planning your quarters, driving teams, and activities.'
                     : 'No annual strategic plan has been published yet.'}
                 </p>
               </div>
             ) : (
-              <>
+              <div className="space-y-5">
+                {/* YEAR THEME BAR */}
                 <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-800">
-                      {activePlanYear} Prophetic & Operational Theme
+                      {activePlanYear} Theme
                     </label>
                     {isFullAdmin && (
                       <button
@@ -1727,7 +1919,7 @@ export default function App() {
                         className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition"
                       >
                         <Trash2 className="w-3 h-3" />
-                        Delete {activePlanYear} Entirely
+                        Delete {activePlanYear}
                       </button>
                     )}
                   </div>
@@ -1736,83 +1928,279 @@ export default function App() {
                       type="text"
                       value={currentYearData.theme}
                       onChange={(e) => handleUpdateYearTheme(e.target.value)}
-                      placeholder={`Enter ${activePlanYear} theme...`}
+                      placeholder={`Type ${activePlanYear} theme...`}
                       className="w-full bg-white border border-amber-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none"
                     />
                   ) : (
-                    <div className="text-sm font-bold text-slate-900">{currentYearData.theme}</div>
+                    <div className="text-sm font-bold text-slate-900">{currentYearData.theme || '—'}</div>
                   )}
                 </div>
 
-                {isFullAdmin && (
-                  <form onSubmit={handleAddGoal} className="bg-slate-50 border border-slate-200 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-5 gap-2.5 items-end">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Quarter</label>
-                      <input
-                        type="text"
-                        value={newGoalForm.quarter}
-                        onChange={(e) => setNewGoalForm({ ...newGoalForm, quarter: e.target.value })}
-                        placeholder={`Q1 ${activePlanYear}`}
-                        className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Strategic Milestone / Goal</label>
-                      <input
-                        type="text"
-                        value={newGoalForm.title}
-                        onChange={(e) => setNewGoalForm({ ...newGoalForm, title: e.target.value })}
-                        placeholder="e.g., Launch Gdańsk Outreach Fellowship"
-                        className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Target Metric</label>
-                      <input
-                        type="text"
-                        value={newGoalForm.target}
-                        onChange={(e) => setNewGoalForm({ ...newGoalForm, target: e.target.value })}
-                        placeholder="15 Members"
-                        className="w-full px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
-                      />
-                    </div>
-                    <button type="submit" className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
-                      Add Goal
-                    </button>
-                  </form>
-                )}
-
-                {currentYearData.goals.length === 0 ? (
-                  <p className="text-xs text-slate-500 py-6 text-center">No strategic goals added for {activePlanYear} yet.</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {currentYearData.goals.map(goal => (
-                      <div key={goal.id} className="border border-slate-200 rounded-xl p-4 space-y-2.5">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-bold">{goal.quarter}</span>
-                            <h4 className="font-bold text-slate-900 text-sm mt-1">{goal.title}</h4>
-                            <p className="text-xs text-slate-500">Target: {goal.target}</p>
-                          </div>
-                          {isFullAdmin && (
-                            <button onClick={() => handleDeleteGoal(goal.id)} className="text-slate-400 hover:text-red-600">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                          <div className="bg-emerald-600 h-2 rounded-full" style={{ width: `${goal.progress}%` }} />
-                        </div>
-                        <div className="flex justify-between text-[11px] font-semibold text-slate-600">
-                          <span>Status: {goal.status}</span>
-                          <span>{goal.progress}%</span>
-                        </div>
-                      </div>
-                    ))}
+                {/* CLICK-TO-VIEW QUARTER TABS */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {yearQuarterKeys.map(qKey => {
+                      const qObj = currentYearData.quarters[qKey] || { team: '', activities: [] };
+                      const isSelected = qKey === activeQuarterKey;
+                      const doneCount = (qObj.activities || []).filter(a => a.executionStatus === 'executed').length;
+                      const totalCount = (qObj.activities || []).length;
+                      return (
+                        <button
+                          key={qKey}
+                          type="button"
+                          onClick={() => setSelectedQuarterTab(qKey)}
+                          className={`px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 border ${
+                            isSelected
+                              ? 'bg-slate-900 text-amber-300 border-slate-900 shadow-sm'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                          }`}
+                        >
+                          <span>{qKey}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
+                            isSelected ? 'bg-slate-800 text-amber-200' : 'bg-white text-slate-600 border border-slate-200'
+                          }`}>
+                            {doneCount}/{totalCount}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
-              </>
+
+                  {isFullAdmin && (
+                    <form onSubmit={handleAddQuarterTab} className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="Custom quarter tab..."
+                        value={customQuarterInput}
+                        onChange={(e) => setCustomQuarterInput(e.target.value)}
+                        className="w-36 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-slate-50"
+                      />
+                      <button
+                        type="submit"
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold rounded-lg"
+                      >
+                        + Quarter
+                      </button>
+                    </form>
+                  )}
+                </div>
+
+                {/* SINGLE SELECTED QUARTER WORKSPACE */}
+                <div className="border border-slate-200 rounded-2xl p-5 bg-slate-50/40 space-y-5">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white border border-slate-200 rounded-xl p-4">
+                    <div className="flex-1 space-y-1">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        {activeQuarterKey} Driving Team
+                      </label>
+                      {isFullAdmin ? (
+                        <input
+                          type="text"
+                          value={activeQuarterData.team || ''}
+                          onChange={(e) => handleUpdateQuarterTeam(e.target.value)}
+                          placeholder={`Type team driving ${activeQuarterKey}...`}
+                          className="w-full max-w-md px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-lg bg-amber-50/50 focus:outline-none focus:border-amber-500"
+                        />
+                      ) : (
+                        <div className="text-sm font-bold text-slate-900">
+                          {activeQuarterData.team || 'Unassigned'}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                      <span className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-800 font-bold border border-slate-200">
+                        Activities: {quarterActivities.length}
+                      </span>
+                      <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200">
+                        Executed: {executedCount}
+                      </span>
+                      <span className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-800 font-bold border border-rose-200">
+                        Not Executed: {notExecutedCount}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ADD ACTIVITY FOR SELECTED QUARTER */}
+                  {isFullAdmin && (
+                    <form onSubmit={handleAddQuarterActivity} className="bg-white border border-slate-200 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+                      <div className="lg:col-span-4">
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">Activity</label>
+                        <input
+                          type="text"
+                          value={newActivityForm.activity}
+                          onChange={(e) => setNewActivityForm({ ...newActivityForm, activity: e.target.value })}
+                          placeholder={`Type ${activeQuarterKey} activity...`}
+                          className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                          required
+                        />
+                      </div>
+
+                      <div className="lg:col-span-3">
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">Date</label>
+                        <input
+                          type="text"
+                          value={newActivityForm.date}
+                          onChange={(e) => setNewActivityForm({ ...newActivityForm, date: e.target.value })}
+                          placeholder="Type date or date range..."
+                          className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                        />
+                      </div>
+
+                      <div className="lg:col-span-3">
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">Target</label>
+                        <input
+                          type="text"
+                          value={newActivityForm.target}
+                          onChange={(e) => setNewActivityForm({ ...newActivityForm, target: e.target.value })}
+                          placeholder="Type target..."
+                          className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                        />
+                      </div>
+
+                      <div className="lg:col-span-2">
+                        <button
+                          type="submit"
+                          className="w-full px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-lg"
+                        >
+                          + Add to {activeQuarterKey}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* SELECTED QUARTER ACTIVITIES TABLE */}
+                  <div className="bg-white border border-slate-200 rounded-xl overflow-x-auto">
+                    <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-900">
+                        {activePlanYear} • {activeQuarterKey} Activities
+                        {activeQuarterData.team ? ` — Driven by ${activeQuarterData.team}` : ''}
+                      </span>
+                      <span className="text-slate-500">{quarterActivities.length} item(s)</span>
+                    </div>
+
+                    {quarterActivities.length === 0 ? (
+                      <div className="py-10 text-center text-xs text-slate-500">
+                        No activities added for {activeQuarterKey} in {activePlanYear} yet.
+                      </div>
+                    ) : (
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-200 text-slate-500 bg-white">
+                            <th className="py-2.5 px-3">Activity</th>
+                            <th className="py-2.5 px-3">Date</th>
+                            <th className="py-2.5 px-3">Target</th>
+                            <th className="py-2.5 px-3">Status Tick (Executed / Not Executed)</th>
+                            {isFullAdmin && <th className="py-2.5 px-3 text-right">Remove</th>}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {quarterActivities.map(item => {
+                            const isExec = item.executionStatus === 'executed';
+                            const isNotExec = item.executionStatus === 'not_executed';
+                            return (
+                              <tr key={item.id} className="hover:bg-slate-50/80 align-middle">
+                                <td className="py-2.5 px-3 min-w-[210px]">
+                                  {isFullAdmin ? (
+                                    <input
+                                      type="text"
+                                      value={item.activity}
+                                      onChange={(e) => handleUpdateActivityField(item.id, 'activity', e.target.value)}
+                                      className="w-full px-2 py-1 text-xs font-bold text-slate-900 border border-transparent hover:border-slate-300 focus:border-amber-500 rounded bg-transparent focus:bg-white"
+                                    />
+                                  ) : (
+                                    <span className="font-bold text-slate-900">{item.activity}</span>
+                                  )}
+                                </td>
+
+                                <td className="py-2.5 px-3 min-w-[140px]">
+                                  {isFullAdmin ? (
+                                    <input
+                                      type="text"
+                                      value={item.date}
+                                      onChange={(e) => handleUpdateActivityField(item.id, 'date', e.target.value)}
+                                      placeholder="Type date..."
+                                      className="w-full px-2 py-1 text-xs text-slate-700 border border-transparent hover:border-slate-300 focus:border-amber-500 rounded bg-transparent focus:bg-white"
+                                    />
+                                  ) : (
+                                    <span className="text-slate-700">{item.date || '—'}</span>
+                                  )}
+                                </td>
+
+                                <td className="py-2.5 px-3 min-w-[150px]">
+                                  {isFullAdmin ? (
+                                    <input
+                                      type="text"
+                                      value={item.target}
+                                      onChange={(e) => handleUpdateActivityField(item.id, 'target', e.target.value)}
+                                      placeholder="Type target..."
+                                      className="w-full px-2 py-1 text-xs text-slate-700 border border-transparent hover:border-slate-300 focus:border-amber-500 rounded bg-transparent focus:bg-white"
+                                    />
+                                  ) : (
+                                    <span className="text-slate-700">{item.target || '—'}</span>
+                                  )}
+                                </td>
+
+                                <td className="py-2.5 px-3 whitespace-nowrap">
+                                  <div className="inline-flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={!isFullAdmin}
+                                      onClick={() => handleSetActivityStatus(item.id, 'executed')}
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
+                                        isExec
+                                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                          : 'bg-white text-slate-600 border-slate-300 hover:bg-emerald-50'
+                                      } ${!isFullAdmin ? 'cursor-default opacity-90' : ''}`}
+                                    >
+                                      <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
+                                        isExec ? 'bg-white text-emerald-700 border-white' : 'border-slate-400'
+                                      }`}>
+                                        {isExec && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                      </span>
+                                      Executed
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      disabled={!isFullAdmin}
+                                      onClick={() => handleSetActivityStatus(item.id, 'not_executed')}
+                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
+                                        isNotExec
+                                          ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                                          : 'bg-white text-slate-600 border-slate-300 hover:bg-rose-50'
+                                      } ${!isFullAdmin ? 'cursor-default opacity-90' : ''}`}
+                                    >
+                                      <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
+                                        isNotExec ? 'bg-white text-rose-700 border-white' : 'border-slate-400'
+                                      }`}>
+                                        {isNotExec && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                      </span>
+                                      Not Executed
+                                    </button>
+                                  </div>
+                                </td>
+
+                                {isFullAdmin && (
+                                  <td className="py-2.5 px-3 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteQuarterActivity(item.id)}
+                                      title="Delete activity"
+                                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -1844,7 +2232,7 @@ export default function App() {
                     <input
                       type="text"
                       list="dlbc-locations-list"
-                      placeholder="e.g., Warsaw, Wrocław, Gdańsk, Online..."
+                      placeholder="Type location..."
                       value={attForm.location}
                       onChange={(e) => setAttForm({ ...attForm, location: e.target.value })}
                       className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
@@ -1857,7 +2245,7 @@ export default function App() {
                     <input
                       type="text"
                       list="dlbc-service-types-list"
-                      placeholder="e.g., Sunday Worship, Koinonia, Night Vigil..."
+                      placeholder="Type service type..."
                       value={attForm.serviceType}
                       onChange={(e) => setAttForm({ ...attForm, serviceType: e.target.value })}
                       className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
@@ -1869,7 +2257,7 @@ export default function App() {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Recorded By (Name)</label>
                     <input
                       type="text"
-                      placeholder="e.g., Bro Pelumi"
+                      placeholder="Type your name..."
                       value={attForm.recordedBy}
                       onChange={(e) => setAttForm({ ...attForm, recordedBy: e.target.value })}
                       className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
@@ -2219,7 +2607,6 @@ export default function App() {
                     })}
                   </div>
 
-                  {/* Monthly Summary Table by Location & Service */}
                   <div className="overflow-x-auto border border-slate-200 rounded-xl">
                     <div className="bg-amber-50/70 px-4 py-2.5 border-b border-amber-200 flex items-center justify-between text-xs">
                       <span className="font-bold text-slate-900">Monthly Summary Table for {activeAttMonth}</span>
@@ -2269,7 +2656,6 @@ export default function App() {
                     </table>
                   </div>
 
-                  {/* Individual Sessions Inside Selected Month */}
                   <div className="overflow-x-auto border border-slate-200 rounded-xl">
                     <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 text-xs font-bold text-slate-800">
                       Sessions Logged in {activeAttMonth}
@@ -2345,18 +2731,18 @@ export default function App() {
               <form onSubmit={handleAddNewcomer} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
-                  <input type="text" value={ncForm.fullName} onChange={(e) => setNcForm({ ...ncForm, fullName: e.target.value })} placeholder="Visitor full name" className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" required />
+                  <input type="text" value={ncForm.fullName} onChange={(e) => setNcForm({ ...ncForm, fullName: e.target.value })} placeholder="Type full name..." className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" required />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
-                  <input type="text" value={ncForm.phone} onChange={(e) => setNcForm({ ...ncForm, phone: e.target.value })} placeholder="+48 ..." className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" />
+                  <input type="text" value={ncForm.phone} onChange={(e) => setNcForm({ ...ncForm, phone: e.target.value })} placeholder="Type phone..." className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Location (Type Yourself)</label>
                   <input
                     type="text"
                     list="dlbc-locations-list"
-                    placeholder="e.g., Warsaw, Łódź..."
+                    placeholder="Type location..."
                     value={ncForm.location}
                     onChange={(e) => setNcForm({ ...ncForm, location: e.target.value })}
                     className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
@@ -2369,7 +2755,7 @@ export default function App() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Follow-Up Worker</label>
-                  <input type="text" value={ncForm.assignedFollowUp} onChange={(e) => setNcForm({ ...ncForm, assignedFollowUp: e.target.value })} className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" />
+                  <input type="text" value={ncForm.assignedFollowUp} onChange={(e) => setNcForm({ ...ncForm, assignedFollowUp: e.target.value })} placeholder="Type worker name..." className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" />
                 </div>
                 <button type="submit" className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
                   + Save Newcomer
@@ -2410,12 +2796,13 @@ export default function App() {
                 {ncViewMode === 'quarter' && (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-slate-500">Quarter:</span>
-                    <select value={selectedQuarter} onChange={(e) => setSelectedQuarter(e.target.value)} className="px-2.5 py-1 text-xs border border-slate-300 rounded-lg">
-                      <option value="2026-Q4">2026-Q4 (Oct–Dec)</option>
-                      <option value="2026-Q3">2026-Q3 (Jul–Sep)</option>
-                      <option value="2026-Q2">2026-Q2 (Apr–Jun)</option>
-                      <option value="2026-Q1">2026-Q1 (Jan–Mar)</option>
-                    </select>
+                    <input
+                      type="text"
+                      value={selectedQuarter}
+                      onChange={(e) => setSelectedQuarter(e.target.value)}
+                      placeholder="Type quarter (e.g. 2026-Q4)..."
+                      className="px-2.5 py-1 text-xs border border-slate-300 rounded-lg w-32"
+                    />
                   </div>
                 )}
               </div>
@@ -2537,7 +2924,7 @@ export default function App() {
                   <input
                     type="text"
                     list="dlbc-service-types-list"
-                    placeholder="All services (or type to filter...)"
+                    placeholder="Type service to filter..."
                     value={analyticsServiceFilter}
                     onChange={(e) => setAnalyticsServiceFilter(e.target.value)}
                     className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50 text-slate-900"
@@ -2549,7 +2936,7 @@ export default function App() {
                   <input
                     type="text"
                     list="dlbc-locations-list"
-                    placeholder="All locations (or type to filter...)"
+                    placeholder="Type location to filter..."
                     value={analyticsLocation}
                     onChange={(e) => setAnalyticsLocation(e.target.value)}
                     className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50 text-slate-900"
@@ -2873,7 +3260,7 @@ export default function App() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
                   <input
                     type="text"
-                    placeholder="e.g., Bro Samuel Adeyemi"
+                    placeholder="Type full name..."
                     value={newPersonForm.fullName}
                     onChange={(e) => setNewPersonForm({ ...newPersonForm, fullName: e.target.value })}
                     className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
@@ -2885,7 +3272,7 @@ export default function App() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
                   <input
                     type="text"
-                    placeholder="+48 500 000 000"
+                    placeholder="Type phone number..."
                     value={newPersonForm.phone}
                     onChange={(e) => setNewPersonForm({ ...newPersonForm, phone: e.target.value })}
                     className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
@@ -2898,7 +3285,7 @@ export default function App() {
                   <input
                     type="text"
                     list="dlbc-locations-list"
-                    placeholder="e.g., Warsaw, Wrocław, Gdańsk..."
+                    placeholder="Type location..."
                     value={newPersonForm.location}
                     onChange={(e) => setNewPersonForm({ ...newPersonForm, location: e.target.value })}
                     className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
@@ -2910,7 +3297,7 @@ export default function App() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Home Address</label>
                   <input
                     type="text"
-                    placeholder="Street, Apt, Postal Code, City"
+                    placeholder="Type home address..."
                     value={newPersonForm.address}
                     onChange={(e) => setNewPersonForm({ ...newPersonForm, address: e.target.value })}
                     className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
@@ -2922,7 +3309,7 @@ export default function App() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Emergency Contact (Who to Contact)</label>
                   <input
                     type="text"
-                    placeholder="Contact Person Name"
+                    placeholder="Type emergency contact name..."
                     value={newPersonForm.emergencyName}
                     onChange={(e) => setNewPersonForm({ ...newPersonForm, emergencyName: e.target.value })}
                     className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
@@ -2934,7 +3321,7 @@ export default function App() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Emergency Contact Number</label>
                   <input
                     type="text"
-                    placeholder="+48 500 000 999"
+                    placeholder="Type emergency phone..."
                     value={newPersonForm.emergencyPhone}
                     onChange={(e) => setNewPersonForm({ ...newPersonForm, emergencyPhone: e.target.value })}
                     className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
@@ -2946,7 +3333,7 @@ export default function App() {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Ministry Units / Fellowship Group (comma-separated)</label>
                   <input
                     type="text"
-                    placeholder="e.g., Ushering, Choir, STS, Evangelism"
+                    placeholder="Type units or groups..."
                     value={newPersonForm.unitsText}
                     onChange={(e) => setNewPersonForm({ ...newPersonForm, unitsText: e.target.value })}
                     className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
