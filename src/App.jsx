@@ -47,13 +47,14 @@ const INITIAL_NEWCOMERS = [
   { id: 'nc6', fullName: 'Samuel Adjei', phone: '+48 512 334 106', location: 'Warsaw', visitDate: '2026-07-12', invitedBy: 'Pastor Dare', assignedFollowUp: 'Bro David', status: 'Established', notes: 'Summer outreach convert — archived after Q3 follow-up', archived: true }
 ];
 
-// No hardcoded years or pre-populated quarter plans — starts clean so users type & manage freely
 const INITIAL_PLANS_AND_NOTICES = {};
 
 const DEFAULT_QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'];
 
-const createEmptyYearPlan = (yr) => ({
+const createEmptyYearPlan = () => ({
   theme: '',
+  bibleReference: '',
+  themeDescription: '',
   noticeBoard: [],
   quarters: {
     Q1: { team: '', activities: [] },
@@ -63,8 +64,8 @@ const createEmptyYearPlan = (yr) => ({
   }
 });
 
-const normalizeYearPlan = (yr, raw) => {
-  const base = createEmptyYearPlan(yr);
+const normalizeYearPlan = (raw) => {
+  const base = createEmptyYearPlan();
   if (!raw || typeof raw !== 'object') return base;
 
   const normalizedQuarters = { ...base.quarters };
@@ -72,12 +73,20 @@ const normalizeYearPlan = (yr, raw) => {
     Object.entries(raw.quarters).forEach(([qKey, qVal]) => {
       normalizedQuarters[qKey] = {
         team: typeof qVal?.team === 'string' ? qVal.team : '',
-        activities: Array.isArray(qVal?.activities) ? qVal.activities : []
+        activities: Array.isArray(qVal?.activities)
+          ? qVal.activities.map(act => ({
+              id: act.id || 'act-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+              activity: act.activity || '',
+              date: act.date || '',
+              target: act.target || '',
+              description: typeof act.description === 'string' ? act.description : '',
+              executionStatus: act.executionStatus === 'executed' ? 'executed' : 'not_executed'
+            }))
+          : []
       };
     });
   }
 
-  // Migrate legacy flat goals array if present in older saved data
   if (Array.isArray(raw.goals) && raw.goals.length > 0) {
     raw.goals.forEach(g => {
       const qKey = (g.quarter || 'Q1').trim() || 'Q1';
@@ -89,6 +98,7 @@ const normalizeYearPlan = (yr, raw) => {
         activity: g.title || '',
         date: g.date || '',
         target: g.target || '',
+        description: typeof g.description === 'string' ? g.description : '',
         executionStatus: g.executionStatus || (g.progress >= 100 ? 'executed' : 'not_executed')
       });
     });
@@ -96,6 +106,8 @@ const normalizeYearPlan = (yr, raw) => {
 
   return {
     theme: typeof raw.theme === 'string' ? raw.theme : '',
+    bibleReference: typeof raw.bibleReference === 'string' ? raw.bibleReference : '',
+    themeDescription: typeof raw.themeDescription === 'string' ? raw.themeDescription : '',
     noticeBoard: Array.isArray(raw.noticeBoard) ? raw.noticeBoard : [],
     quarters: normalizedQuarters
   };
@@ -128,9 +140,6 @@ const INITIAL_ROSTERS = [
   }
 ];
 
-// ============================================================================
-// ACCESS PASSCODES (SPECIAL ENTRY VS PUBLIC URL VIEW)
-// ============================================================================
 const ACCESS_CODES = {
   'DLBC-HP2026': { role: 'head_pastor', label: 'Head Pastor (Full Admin)' },
   'DLBC-FA2026': { role: 'full_access', label: 'Senior / Full Access' },
@@ -202,12 +211,12 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_NEWCOMERS;
   });
   const [plansByYear, setPlansByYear] = useState(() => {
-    const saved = localStorage.getItem('dlbc_plans_v4') || localStorage.getItem('dlbc_plans_v3');
+    const saved = localStorage.getItem('dlbc_plans_v5') || localStorage.getItem('dlbc_plans_v4') || localStorage.getItem('dlbc_plans_v3');
     if (!saved) return INITIAL_PLANS_AND_NOTICES;
     const parsed = JSON.parse(saved);
     const out = {};
     Object.entries(parsed).forEach(([yr, val]) => {
-      out[yr] = normalizeYearPlan(yr, val);
+      out[yr] = normalizeYearPlan(val);
     });
     return out;
   });
@@ -220,7 +229,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('dlbc_weekly_services_v1', JSON.stringify(weeklyServices)); }, [weeklyServices]);
   useEffect(() => { localStorage.setItem('dlbc_attendance_v4', JSON.stringify(attendance)); }, [attendance]);
   useEffect(() => { localStorage.setItem('dlbc_newcomers_v2', JSON.stringify(newcomers)); }, [newcomers]);
-  useEffect(() => { localStorage.setItem('dlbc_plans_v4', JSON.stringify(plansByYear)); }, [plansByYear]);
+  useEffect(() => { localStorage.setItem('dlbc_plans_v5', JSON.stringify(plansByYear)); }, [plansByYear]);
   useEffect(() => { localStorage.setItem('dlbc_rosters_v2', JSON.stringify(rosters)); }, [rosters]);
 
   const isFullAdmin = accessLevel === 'head_pastor' || accessLevel === 'full_access';
@@ -249,9 +258,7 @@ export default function App() {
     return Array.from(set).filter(Boolean);
   }, [weeklyServices, attendance, rosters]);
 
-  // ==========================================================================
   // WEEKLY SERVICE DAYS EDITOR STATE
-  // ==========================================================================
   const [isEditingServices, setIsEditingServices] = useState(false);
   const [servicesDraft, setServicesDraft] = useState([]);
 
@@ -317,9 +324,7 @@ export default function App() {
     }
   };
 
-  // ==========================================================================
   // ANALYTICS COMPUTATIONS
-  // ==========================================================================
   const [analyticsLocation, setAnalyticsLocation] = useState('');
   const [analyticsChartType, setAnalyticsChartType] = useState('trend');
   const [analyticsServiceFilter, setAnalyticsServiceFilter] = useState('');
@@ -434,9 +439,7 @@ export default function App() {
     ? Math.max(...filteredAttendance.map(r => getMetricValue(r, analyticsMetric)))
     : 0;
 
-  // ==========================================================================
   // NEWCOMERS STATE & FILTERS
-  // ==========================================================================
   const [ncViewMode, setNcViewMode] = useState('month');
   const [selectedMonth, setSelectedMonth] = useState('2026-11');
   const [selectedQuarter, setSelectedQuarter] = useState('2026-Q4');
@@ -483,9 +486,7 @@ export default function App() {
     setNewcomers(newcomers.filter(n => n.id !== id));
   };
 
-  // ==========================================================================
-  // WORKERS & MEMBERS SEPARATE DIRECTORIES + PARTICULARS
-  // ==========================================================================
+  // WORKERS & MEMBERS DIRECTORIES
   const [directorySubTab, setDirectorySubTab] = useState('Worker');
   const [dirSearch, setDirSearch] = useState('');
   const [dirLocationFilter, setDirLocationFilter] = useState('');
@@ -574,13 +575,11 @@ export default function App() {
     setEditPersonDraft(null);
   };
 
-  // ==========================================================================
-  // CLICK-TO-VIEW QUARTER WORKSPACE (ZERO HARDCODING, FULL TYPING FLEXIBILITY)
-  // ==========================================================================
+  // STRATEGIC PLAN & QUARTER WORKSPACE
   const availableYears = useMemo(() => Object.keys(plansByYear).sort(), [plansByYear]);
 
   const [selectedPlanYear, setSelectedPlanYear] = useState(() => {
-    const saved = localStorage.getItem('dlbc_plans_v4') || localStorage.getItem('dlbc_plans_v3');
+    const saved = localStorage.getItem('dlbc_plans_v5') || localStorage.getItem('dlbc_plans_v4') || localStorage.getItem('dlbc_plans_v3');
     if (saved) {
       const keys = Object.keys(JSON.parse(saved)).sort();
       return keys.length ? keys[keys.length - 1] : '';
@@ -595,8 +594,11 @@ export default function App() {
     activity: '',
     date: '',
     target: '',
+    description: '',
     executionStatus: 'not_executed'
   });
+  const [editingActivityId, setEditingActivityId] = useState(null);
+  const [editActivityDraft, setEditActivityDraft] = useState(null);
 
   const activePlanYear = useMemo(() => {
     if (selectedPlanYear && plansByYear[selectedPlanYear]) return selectedPlanYear;
@@ -605,14 +607,13 @@ export default function App() {
 
   const currentYearData = useMemo(() => {
     if (!activePlanYear || !plansByYear[activePlanYear]) return null;
-    return normalizeYearPlan(activePlanYear, plansByYear[activePlanYear]);
+    return normalizeYearPlan(plansByYear[activePlanYear]);
   }, [activePlanYear, plansByYear]);
 
   const yearQuarterKeys = useMemo(() => {
     if (!currentYearData) return DEFAULT_QUARTERS;
     const keys = Object.keys(currentYearData.quarters || {});
-    const merged = Array.from(new Set([...DEFAULT_QUARTERS, ...keys]));
-    return merged;
+    return Array.from(new Set([...DEFAULT_QUARTERS, ...keys]));
   }, [currentYearData]);
 
   const activeQuarterKey = useMemo(() => {
@@ -632,11 +633,13 @@ export default function App() {
     if (!plansByYear[yr]) {
       setPlansByYear({
         ...plansByYear,
-        [yr]: createEmptyYearPlan(yr)
+        [yr]: createEmptyYearPlan()
       });
     }
     setSelectedPlanYear(yr);
     setSelectedQuarterTab('Q1');
+    setEditingActivityId(null);
+    setEditActivityDraft(null);
     setNewYearInput('');
   };
 
@@ -651,13 +654,15 @@ export default function App() {
 
     const remaining = Object.keys(updated).sort();
     setSelectedPlanYear(remaining.length > 0 ? remaining[remaining.length - 1] : '');
+    setEditingActivityId(null);
+    setEditActivityDraft(null);
   };
 
-  const handleUpdateYearTheme = (newTheme) => {
+  const handleUpdateYearField = (field, newVal) => {
     if (!activePlanYear || !currentYearData) return;
     setPlansByYear({
       ...plansByYear,
-      [activePlanYear]: { ...currentYearData, theme: newTheme }
+      [activePlanYear]: { ...currentYearData, [field]: newVal }
     });
   };
 
@@ -677,6 +682,8 @@ export default function App() {
       }
     });
     setSelectedQuarterTab(qLabel);
+    setEditingActivityId(null);
+    setEditActivityDraft(null);
     setCustomQuarterInput('');
   };
 
@@ -707,7 +714,8 @@ export default function App() {
       activity: newActivityForm.activity.trim(),
       date: newActivityForm.date.trim(),
       target: newActivityForm.target.trim(),
-      executionStatus: newActivityForm.executionStatus // 'executed' | 'not_executed'
+      description: newActivityForm.description.trim(),
+      executionStatus: newActivityForm.executionStatus
     };
     setPlansByYear({
       ...plansByYear,
@@ -726,6 +734,7 @@ export default function App() {
       activity: '',
       date: '',
       target: '',
+      description: '',
       executionStatus: 'not_executed'
     });
   };
@@ -751,11 +760,25 @@ export default function App() {
     });
   };
 
-  const handleUpdateActivityField = (activityId, field, val) => {
-    if (!activePlanYear || !currentYearData) return;
+  const handleStartEditActivity = (item) => {
+    setEditingActivityId(item.id);
+    setEditActivityDraft({ ...item });
+  };
+
+  const handleSaveEditedActivity = () => {
+    if (!editActivityDraft || !activePlanYear || !currentYearData) return;
     const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
     const updatedActivities = existingQ.activities.map(item =>
-      item.id === activityId ? { ...item, [field]: val } : item
+      item.id === editActivityDraft.id
+        ? {
+            ...item,
+            activity: editActivityDraft.activity.trim() || item.activity,
+            date: editActivityDraft.date.trim(),
+            target: editActivityDraft.target.trim(),
+            description: editActivityDraft.description,
+            executionStatus: editActivityDraft.executionStatus
+          }
+        : item
     );
     setPlansByYear({
       ...plansByYear,
@@ -770,6 +793,8 @@ export default function App() {
         }
       }
     });
+    setEditingActivityId(null);
+    setEditActivityDraft(null);
   };
 
   const handleDeleteQuarterActivity = (activityId) => {
@@ -788,6 +813,10 @@ export default function App() {
         }
       }
     });
+    if (editingActivityId === activityId) {
+      setEditingActivityId(null);
+      setEditActivityDraft(null);
+    }
   };
 
   const handleAddNotice = (e) => {
@@ -819,9 +848,7 @@ export default function App() {
     });
   };
 
-  // ==========================================================================
-  // ATTENDANCE ENTRY & CLICK-A-DATE / CLICK-A-MONTH EXPLORER
-  // ==========================================================================
+  // ATTENDANCE ENTRY & EXPLORER
   const [attForm, setAttForm] = useState({
     date: new Date().toISOString().slice(0, 10),
     location: '',
@@ -967,9 +994,7 @@ export default function App() {
     setAttendance(attendance.filter(a => a.id !== id));
   };
 
-  // ==========================================================================
-  // FLEXIBLE MINISTERING ROSTERS
-  // ==========================================================================
+  // MINISTERING ROSTERS
   const [rosterLocationFilter, setRosterLocationFilter] = useState('');
   const [rosterServiceFilter, setRosterServiceFilter] = useState('');
   const [showRosterBuilder, setShowRosterBuilder] = useState(false);
@@ -1119,7 +1144,7 @@ export default function App() {
   const notExecutedCount = quarterActivities.filter(a => a.executionStatus === 'not_executed').length;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+    <div className="min-h-screen bg-[#f4f6fa] text-[#0f1f3d] font-sans">
       <datalist id="dlbc-locations-list">
         {knownLocations.map(loc => (
           <option key={loc} value={loc} />
@@ -1131,44 +1156,45 @@ export default function App() {
         ))}
       </datalist>
 
-      <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+      {/* DLBC ROYAL NAVY & GOLD HEADER */}
+      <header className="bg-[#0d2247] text-white border-b-2 border-[#d49b1a] sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-extrabold text-lg shadow">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#eab308] via-[#d49b1a] to-[#b47b08] text-[#0d2247] flex items-center justify-center font-extrabold text-lg shadow ring-2 ring-[#facc15]/40">
               DL
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-bold text-base sm:text-lg tracking-tight">DLBC Poland Operations Portal</h1>
-                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-800 text-amber-300 border border-slate-700">
+                <h1 className="font-bold text-base sm:text-lg tracking-tight text-white">DLBC Poland Operations Portal</h1>
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-[#163466] text-[#fde047] border border-[#d49b1a]/40">
                   Warsaw • Wrocław • Poznań • Kraków
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Deeper Life Bible Church Poland — National & Location Administration</p>
+              <p className="text-xs text-[#b8c7e0]">Deeper Life Bible Church Poland — National & Location Administration</p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg">
-              <span className="text-xs text-slate-400">Your Name:</span>
+            <div className="flex items-center gap-2 bg-[#163466] border border-[#2a4d87] px-3 py-1.5 rounded-lg">
+              <span className="text-xs text-[#c7d6ee]">Your Name:</span>
               <input
                 type="text"
                 value={viewerName}
                 onChange={(e) => handleNameChange(e.target.value)}
                 placeholder="Type your name..."
-                className="bg-slate-950 text-white text-xs font-medium px-2.5 py-1 rounded border border-slate-700 focus:outline-none focus:border-amber-400 w-36 sm:w-44"
+                className="bg-[#091833] text-white text-xs font-medium px-2.5 py-1 rounded border border-[#2e5494] focus:outline-none focus:border-[#eab308] w-36 sm:w-44"
               />
             </div>
 
             {accessLevel === 'public_member' ? (
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
-                  <Eye className="w-3.5 h-3.5 text-slate-400" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#163466] text-[#dbe6f7] border border-[#2a4d87]">
+                  <Eye className="w-3.5 h-3.5 text-[#eab308]" />
                   Public View
                 </span>
                 <button
                   onClick={() => setShowUnlockModal(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#eab308] hover:bg-[#facc15] text-[#0d2247] transition shadow-sm"
                 >
                   <Lock className="w-3.5 h-3.5" />
                   Special Entry
@@ -1176,8 +1202,8 @@ export default function App() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-400/40">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
                   {accessLevel === 'head_pastor' && 'Head Pastor (Full Admin)'}
                   {accessLevel === 'full_access' && 'Full Access Oversight'}
                   {accessLevel === 'usher_entry' && 'Usher / Data Entry'}
@@ -1185,7 +1211,7 @@ export default function App() {
                 <button
                   onClick={handleLockToPublic}
                   title="Lock back to Public Member View"
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-[#163466] hover:bg-[#1e427d] text-[#dbe6f7] border border-[#2a4d87] transition"
                 >
                   <Unlock className="w-3.5 h-3.5" />
                   Exit Admin
@@ -1195,7 +1221,7 @@ export default function App() {
           </div>
         </div>
 
-        <nav className="bg-slate-950/60 border-t border-slate-800/80 overflow-x-auto">
+        <nav className="bg-[#091833] border-t border-[#1c396b] overflow-x-auto">
           <div className="max-w-7xl mx-auto px-4 flex items-center gap-1">
             {navTabs.map(tab => {
               const Icon = tab.icon;
@@ -1206,8 +1232,8 @@ export default function App() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition ${
                     active
-                      ? 'border-amber-400 text-amber-300 bg-slate-900/70'
-                      : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-900/40'
+                      ? 'border-[#eab308] text-[#fde047] bg-[#0d2247]'
+                      : 'border-transparent text-[#9eb2d4] hover:text-white hover:bg-[#0d2247]/60'
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -1220,15 +1246,15 @@ export default function App() {
       </header>
 
       {showUnlockModal && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+        <div className="fixed inset-0 bg-[#071329]/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#d9e1ef]">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-[#fef6df] text-[#9a6b06] border border-[#f2d488] flex items-center justify-center">
                   <Lock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">Special Leadership & Worker Entry</h3>
+                  <h3 className="font-bold text-[#0d2247] text-base">Special Leadership & Worker Entry</h3>
                   <p className="text-xs text-slate-500">Unlocks restricted analytics, personal data & entry forms</p>
                 </div>
               </div>
@@ -1239,32 +1265,32 @@ export default function App() {
 
             <form onSubmit={handleUnlockSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Your Display Name</label>
+                <label className="block text-xs font-semibold text-[#0d2247] mb-1">Your Display Name</label>
                 <input
                   type="text"
                   value={viewerName}
                   onChange={(e) => handleNameChange(e.target.value)}
                   placeholder="Type your name..."
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-amber-500"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-[#0d2247]"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Special Entry Passcode</label>
+                <label className="block text-xs font-semibold text-[#0d2247] mb-1">Special Entry Passcode</label>
                 <input
                   type="password"
                   value={passcodeInput}
                   onChange={(e) => setPasscodeInput(e.target.value)}
                   placeholder="Enter access passcode..."
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-amber-500"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:border-[#0d2247]"
                   required
                 />
                 {passcodeError && <p className="text-xs text-red-600 mt-1">{passcodeError}</p>}
               </div>
 
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-                <p className="font-semibold text-slate-800">Access Tiers:</p>
+              <div className="bg-[#f8fafd] border border-[#dfe6f2] rounded-lg p-3 text-xs text-slate-600 space-y-1">
+                <p className="font-semibold text-[#0d2247]">Access Tiers:</p>
                 <p>• <strong>Head Pastor / Full Access:</strong> Full analytics, personal particulars, financial offerings, directory & archive controls.</p>
                 <p>• <strong>Usher / Data Entry:</strong> Attendance logging & newcomer follow-up (personal directory & offering totals remain hidden).</p>
               </div>
@@ -1279,7 +1305,7 @@ export default function App() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg"
+                  className="px-4 py-2 text-xs font-semibold bg-[#0d2247] hover:bg-[#163466] text-white rounded-lg"
                 >
                   Unlock Access
                 </button>
@@ -1290,18 +1316,19 @@ export default function App() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="bg-white border border-[#dce3f0] border-l-4 border-l-[#0d2247] rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             {currentYearData && currentYearData.theme ? (
-              <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#9a6b06]">
                 {activePlanYear} • {currentYearData.theme}
+                {currentYearData.bibleReference ? ` (${currentYearData.bibleReference})` : ''}
               </p>
             ) : (
-              <p className="text-xs font-semibold uppercase tracking-wider text-amber-600">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#9a6b06]">
                 Deeper Life Bible Church • National & Location Operations
               </p>
             )}
-            <h2 className="text-xl font-bold text-slate-900 mt-0.5">
+            <h2 className="text-xl font-bold text-[#0d2247] mt-0.5">
               Welcome{viewerName.trim() ? `, ${viewerName.trim()}` : ' to DLBC Poland'}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
@@ -1312,18 +1339,18 @@ export default function App() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-center">
+            <div className="bg-[#f8fafd] border border-[#dce3f0] rounded-xl px-4 py-2.5 text-center">
               <div className="text-xs text-slate-500">Logged Locations</div>
-              <div className="text-lg font-extrabold text-slate-900">{knownLocations.length}</div>
+              <div className="text-lg font-extrabold text-[#0d2247]">{knownLocations.length}</div>
             </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-center">
+            <div className="bg-[#f8fafd] border border-[#dce3f0] rounded-xl px-4 py-2.5 text-center">
               <div className="text-xs text-slate-500">Sunday Avg</div>
-              <div className="text-lg font-extrabold text-emerald-600">{latestSundayAvg}</div>
+              <div className="text-lg font-extrabold text-emerald-700">{latestSundayAvg}</div>
             </div>
             {isFullAdmin && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-center">
-                <div className="text-xs text-amber-800">Workers / Members</div>
-                <div className="text-lg font-extrabold text-amber-900">{workersCount} / {membersCount}</div>
+              <div className="bg-[#fef9ea] border border-[#f2d488] rounded-xl px-4 py-2.5 text-center">
+                <div className="text-xs text-[#8a5d05]">Workers / Members</div>
+                <div className="text-lg font-extrabold text-[#0d2247]">{workersCount} / {membersCount}</div>
               </div>
             )}
           </div>
@@ -1333,11 +1360,11 @@ export default function App() {
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <div className="flex items-center gap-2">
-                    <Bell className="w-5 h-5 text-amber-600" />
-                    <h3 className="font-bold text-slate-900 text-base">
+                    <Bell className="w-5 h-5 text-[#b47b08]" />
+                    <h3 className="font-bold text-[#0d2247] text-base">
                       Church Notice Board {activePlanYear ? `(${activePlanYear})` : ''}
                     </h3>
                   </div>
@@ -1348,7 +1375,7 @@ export default function App() {
                       <select
                         value={activePlanYear}
                         onChange={(e) => setSelectedPlanYear(e.target.value)}
-                        className="text-xs font-semibold bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5"
+                        className="text-xs font-semibold bg-[#f4f6fa] border border-slate-300 rounded-lg px-2.5 py-1.5"
                       >
                         {availableYears.map(yr => (
                           <option key={yr} value={yr}>{yr}</option>
@@ -1359,8 +1386,8 @@ export default function App() {
                 </div>
 
                 {!currentYearData ? (
-                  <div className="py-8 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/70 space-y-3">
-                    <p className="text-xs font-semibold text-slate-700">No year has been created yet for the Notice Board & Strategic Plan.</p>
+                  <div className="py-8 text-center border border-dashed border-[#cdd7e8] rounded-xl bg-[#f8fafd] space-y-3">
+                    <p className="text-xs font-semibold text-[#0d2247]">No year has been created yet for the Notice Board & Strategic Plan.</p>
                     {isFullAdmin ? (
                       <form onSubmit={handleCreateYear} className="inline-flex items-center gap-2">
                         <input
@@ -1371,7 +1398,7 @@ export default function App() {
                           className="w-40 px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
                           required
                         />
-                        <button type="submit" className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-lg">
+                        <button type="submit" className="px-3.5 py-1.5 bg-[#0d2247] hover:bg-[#163466] text-[#fde047] text-xs font-bold rounded-lg">
                           + Create Year
                         </button>
                       </form>
@@ -1382,8 +1409,8 @@ export default function App() {
                 ) : (
                   <>
                     {isFullAdmin && (
-                      <form onSubmit={handleAddNotice} className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 space-y-3">
-                        <div className="text-xs font-bold text-slate-800">Post New Announcement to {activePlanYear} Notice Board</div>
+                      <form onSubmit={handleAddNotice} className="bg-[#f8fafd] border border-[#dce3f0] rounded-xl p-4 mb-5 space-y-3">
+                        <div className="text-xs font-bold text-[#0d2247]">Post New Announcement to {activePlanYear} Notice Board</div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                           <input
                             type="text"
@@ -1425,7 +1452,7 @@ export default function App() {
                           className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
                           required
                         />
-                        <button type="submit" className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                        <button type="submit" className="px-4 py-1.5 bg-[#0d2247] hover:bg-[#163466] text-white text-xs font-semibold rounded-lg">
                           Publish Notice
                         </button>
                       </form>
@@ -1436,12 +1463,12 @@ export default function App() {
                     ) : (
                       <div className="space-y-3">
                         {currentYearData.noticeBoard.map(notice => (
-                          <div key={notice.id} className="border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition bg-white">
+                          <div key={notice.id} className="border border-[#dce3f0] rounded-xl p-4 hover:border-[#b9c7df] transition bg-white">
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <div className="flex items-center gap-2">
                                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                    notice.priority === 'Urgent' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                                    notice.priority === 'Urgent' ? 'bg-red-100 text-red-700' : 'bg-[#e8effa] text-[#0d2247]'
                                   }`}>
                                     {notice.priority}
                                   </span>
@@ -1449,7 +1476,7 @@ export default function App() {
                                     {notice.date}{notice.audience ? ` • ${notice.audience}` : ''}
                                   </span>
                                 </div>
-                                <h4 className="font-bold text-slate-900 text-sm mt-1">{notice.title}</h4>
+                                <h4 className="font-bold text-[#0d2247] text-sm mt-1">{notice.title}</h4>
                               </div>
                               {isFullAdmin && (
                                 <button
@@ -1472,17 +1499,16 @@ export default function App() {
             </div>
 
             <div className="space-y-4">
-              {/* EDITABLE WEEKLY SERVICE DAYS CARD */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-amber-600" />
+                  <h3 className="font-bold text-[#0d2247] text-sm flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#b47b08]" />
                     Weekly Service Days (Poland)
                   </h3>
                   {isFullAdmin && !isEditingServices && (
                     <button
                       onClick={startEditingServices}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6] transition"
                     >
                       <Edit3 className="w-3 h-3" />
                       Edit Days
@@ -1493,9 +1519,9 @@ export default function App() {
                 {isFullAdmin && isEditingServices ? (
                   <form onSubmit={handleSaveServices} className="space-y-3">
                     {servicesDraft.map((svc, idx) => (
-                      <div key={svc.id} className="p-3 rounded-xl bg-amber-50/50 border border-amber-200 space-y-2">
+                      <div key={svc.id} className="p-3 rounded-xl bg-[#fef9ea] border border-[#f2d488] space-y-2">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#8a5d05]">
                             Service #{idx + 1}
                           </span>
                           <button
@@ -1545,7 +1571,7 @@ export default function App() {
                       </button>
                       <button
                         type="submit"
-                        className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-lg"
+                        className="inline-flex items-center gap-1 px-3.5 py-1.5 bg-[#0d2247] hover:bg-[#163466] text-[#fde047] text-xs font-bold rounded-lg"
                       >
                         <Check className="w-3.5 h-3.5" />
                         Save Changes
@@ -1558,8 +1584,8 @@ export default function App() {
                       <p className="text-slate-500 py-3 text-center">No weekly service days listed.</p>
                     ) : (
                       weeklyServices.map(svc => (
-                        <div key={svc.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                          <div className="font-bold text-slate-900">{svc.name}</div>
+                        <div key={svc.id} className="p-3 rounded-xl bg-[#f8fafd] border border-[#dce3f0]">
+                          <div className="font-bold text-[#0d2247]">{svc.name}</div>
                           <div className="text-slate-600 mt-0.5">{svc.schedule}</div>
                         </div>
                       ))
@@ -1568,10 +1594,10 @@ export default function App() {
                 )}
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+              <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-bold text-slate-900 text-sm">Next Ministering Roster</h3>
-                  <button onClick={() => setActiveTab('rosters')} className="text-xs font-semibold text-amber-600 hover:underline">
+                  <h3 className="font-bold text-[#0d2247] text-sm">Next Ministering Roster</h3>
+                  <button onClick={() => setActiveTab('rosters')} className="text-xs font-semibold text-[#9a6b06] hover:underline">
                     View All
                   </button>
                 </div>
@@ -1583,7 +1609,7 @@ export default function App() {
                     {rosters[0].assignments.map((a, idx) => (
                       <div key={idx} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100 last:border-0">
                         <span className="text-slate-500">{a.slot}</span>
-                        <span className="font-semibold text-slate-900">{a.worker}</span>
+                        <span className="font-semibold text-[#0d2247]">{a.worker}</span>
                       </div>
                     ))}
                   </div>
@@ -1596,10 +1622,10 @@ export default function App() {
         {/* TAB 2: FLEXIBLE MINISTERING ROSTERS */}
         {activeTab === 'rosters' && (
           <div className="space-y-5">
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs space-y-4">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">Flexible Ministering & Duty Rosters</h3>
+                  <h3 className="font-bold text-[#0d2247] text-base">Flexible Ministering & Duty Rosters</h3>
                   <p className="text-xs text-slate-500">
                     Type any Service / Program name and Location to create or filter schedules
                   </p>
@@ -1608,7 +1634,7 @@ export default function App() {
                 {isFullAdmin && (
                   <button
                     onClick={openNewRosterBuilder}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-xl shadow-sm transition"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0d2247] hover:bg-[#163466] text-[#fde047] text-xs font-bold rounded-xl shadow-xs transition"
                   >
                     <Plus className="w-4 h-4" />
                     Create New Roster
@@ -1625,7 +1651,7 @@ export default function App() {
                     placeholder="Type service name to filter..."
                     value={rosterServiceFilter}
                     onChange={(e) => setRosterServiceFilter(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50"
+                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-[#f8fafd]"
                   />
                 </div>
 
@@ -1637,23 +1663,23 @@ export default function App() {
                     placeholder="Type location to filter..."
                     value={rosterLocationFilter}
                     onChange={(e) => setRosterLocationFilter(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50"
+                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-[#f8fafd]"
                   />
                 </div>
 
                 <div className="flex items-end">
-                  <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 w-full">
-                    Showing <strong className="text-slate-900">{filteredRosters.length}</strong> roster(s)
+                  <div className="text-xs text-slate-500 bg-[#f8fafd] border border-[#dce3f0] rounded-xl px-3 py-2 w-full">
+                    Showing <strong className="text-[#0d2247]">{filteredRosters.length}</strong> roster(s)
                   </div>
                 </div>
               </div>
             </div>
 
             {isFullAdmin && showRosterBuilder && (
-              <div className="bg-white border-2 border-amber-400 rounded-2xl p-5 shadow-md space-y-4">
+              <div className="bg-white border-2 border-[#eab308] rounded-2xl p-5 shadow-md space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                   <div>
-                    <h4 className="font-bold text-slate-900 text-sm">
+                    <h4 className="font-bold text-[#0d2247] text-sm">
                       {editingRosterId ? 'Edit Ministering Roster' : 'Build Service / Program Roster'}
                     </h4>
                     <p className="text-xs text-slate-500">
@@ -1668,20 +1694,20 @@ export default function App() {
                 <form onSubmit={handleSaveRoster} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Service / Program Name</label>
+                      <label className="block text-xs font-semibold text-[#0d2247] mb-1">Service / Program Name</label>
                       <input
                         type="text"
                         list="dlbc-service-types-list"
                         placeholder="Type service or program name..."
                         value={rosterDraft.serviceType}
                         onChange={(e) => setRosterDraft({ ...rosterDraft, serviceType: e.target.value })}
-                        className="w-full px-3 py-2 text-xs font-bold border border-slate-300 rounded-lg bg-amber-50"
+                        className="w-full px-3 py-2 text-xs font-bold border border-slate-300 rounded-lg bg-[#fef9ea]"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Date</label>
+                      <label className="block text-xs font-semibold text-[#0d2247] mb-1">Date</label>
                       <input
                         type="date"
                         value={rosterDraft.date}
@@ -1692,7 +1718,7 @@ export default function App() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
+                      <label className="block text-xs font-semibold text-[#0d2247] mb-1">Location</label>
                       <input
                         type="text"
                         list="dlbc-locations-list"
@@ -1705,13 +1731,13 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                  <div className="space-y-2 bg-[#f8fafd] border border-[#dce3f0] rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-slate-800">Program Line-Up & Assigned Ministers / Workers</span>
+                      <span className="text-xs font-bold text-[#0d2247]">Program Line-Up & Assigned Ministers / Workers</span>
                       <button
                         type="button"
                         onClick={handleAddDraftSlot}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-semibold text-[#0d2247]"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Add Program Slot
@@ -1770,7 +1796,7 @@ export default function App() {
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-lg"
+                      className="px-5 py-2 bg-[#0d2247] hover:bg-[#163466] text-[#fde047] text-xs font-bold rounded-lg"
                     >
                       {editingRosterId ? 'Save Updated Roster' : 'Publish Roster'}
                     </button>
@@ -1780,23 +1806,23 @@ export default function App() {
             )}
 
             {filteredRosters.length === 0 ? (
-              <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center">
+              <div className="bg-white border border-dashed border-[#cdd7e8] rounded-2xl p-10 text-center">
                 <Calendar className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                <h4 className="font-bold text-slate-800 text-sm">No rosters match this service or location filter</h4>
+                <h4 className="font-bold text-[#0d2247] text-sm">No rosters match this service or location filter</h4>
                 <p className="text-xs text-slate-500 mt-1">Clear the filters above or create a new roster.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredRosters.map(r => (
-                  <div key={r.id} className="border border-slate-200 rounded-2xl p-4 bg-white shadow-sm flex flex-col justify-between">
+                  <div key={r.id} className="border border-[#dce3f0] rounded-2xl p-4 bg-white shadow-xs flex flex-col justify-between">
                     <div>
                       <div className="flex items-start justify-between gap-2 mb-3">
                         <div>
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 text-[11px] font-bold">{r.location}</span>
-                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-semibold">{r.date}</span>
+                            <span className="px-2 py-0.5 rounded bg-[#fef6df] text-[#8a5d05] border border-[#f2d488] text-[11px] font-bold">{r.location}</span>
+                            <span className="px-2 py-0.5 rounded bg-[#eef2f9] text-[#0d2247] text-[11px] font-semibold">{r.date}</span>
                           </div>
-                          <h4 className="font-bold text-slate-900 text-sm mt-1.5">{r.serviceType}</h4>
+                          <h4 className="font-bold text-[#0d2247] text-sm mt-1.5">{r.serviceType}</h4>
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0">
@@ -1807,7 +1833,7 @@ export default function App() {
                               navigator.clipboard?.writeText(txt);
                               alert('Roster copied for WhatsApp!');
                             }}
-                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold rounded-lg"
+                            className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-semibold rounded-lg"
                           >
                             Copy WhatsApp
                           </button>
@@ -1817,7 +1843,7 @@ export default function App() {
                               <button
                                 onClick={() => openEditRosterBuilder(r)}
                                 title="Edit Roster"
-                                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg"
+                                className="p-1.5 bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] rounded-lg"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
                               </button>
@@ -1833,14 +1859,14 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="divide-y divide-slate-100 bg-slate-50/70 rounded-xl border border-slate-200 px-3">
+                      <div className="divide-y divide-slate-100 bg-[#f8fafd] rounded-xl border border-[#dce3f0] px-3">
                         {r.assignments.map((a, i) => (
                           <div key={i} className="py-2 flex items-center justify-between text-xs">
                             <div>
                               <span className="font-mono text-slate-400 mr-2">{a.time}</span>
                               <span className="text-slate-700">{a.slot}</span>
                             </div>
-                            <span className="font-bold text-slate-900">{a.worker}</span>
+                            <span className="font-bold text-[#0d2247]">{a.worker}</span>
                           </div>
                         ))}
                       </div>
@@ -1852,24 +1878,28 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: CLICK-TO-VIEW QUARTER STRATEGIC PLAN (ZERO LITTER, FULL TYPING FLEXIBILITY) */}
+        {/* TAB 3: CLICK-TO-VIEW QUARTER STRATEGIC PLAN */}
         {activeTab === 'plans' && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-5">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-4">
+          <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs space-y-5">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#e3e9f3] pb-4">
               <div>
-                <h3 className="font-bold text-slate-900 text-base">Annual Strategic Plan & Vision Tracker</h3>
-                <p className="text-xs text-slate-500">Click a quarter tab to view its driving team, activities, dates, targets, and execution ticks</p>
+                <h3 className="font-bold text-[#0d2247] text-base">Annual Strategic Plan & Vision Tracker</h3>
+                <p className="text-xs text-slate-500">Click a quarter tab to view its driving team, activities, dates, targets, descriptions, and execution ticks</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 {availableYears.map(yr => (
                   <button
                     key={yr}
-                    onClick={() => setSelectedPlanYear(yr)}
+                    onClick={() => {
+                      setSelectedPlanYear(yr);
+                      setEditingActivityId(null);
+                      setEditActivityDraft(null);
+                    }}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
                       activePlanYear === yr
-                        ? 'bg-slate-900 text-amber-300 shadow'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        ? 'bg-[#0d2247] text-[#fde047] shadow-xs'
+                        : 'bg-[#f4f6fa] text-[#0d2247] hover:bg-[#e6ecf6] border border-[#dce3f0]'
                     }`}
                   >
                     {yr}
@@ -1886,7 +1916,7 @@ export default function App() {
                       className="w-32 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg"
                       required
                     />
-                    <button type="submit" className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg">
+                    <button type="submit" className="px-3 py-1.5 bg-[#eab308] hover:bg-[#facc15] text-[#0d2247] text-xs font-bold rounded-lg">
                       + Year
                     </button>
                   </form>
@@ -1895,23 +1925,22 @@ export default function App() {
             </div>
 
             {!currentYearData ? (
-              <div className="py-12 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/70 space-y-3">
-                <BookOpen className="w-8 h-8 text-slate-400 mx-auto" />
-                <h4 className="font-bold text-slate-800 text-sm">No Strategic Plan Year Created Yet</h4>
+              <div className="py-12 text-center border border-dashed border-[#cdd7e8] rounded-2xl bg-[#f8fafd] space-y-3">
+                <BookOpen className="w-8 h-8 text-[#0d2247]/50 mx-auto" />
+                <h4 className="font-bold text-[#0d2247] text-sm">No Strategic Plan Year Created Yet</h4>
                 <p className="text-xs text-slate-500 max-w-md mx-auto">
                   {isFullAdmin
-                    ? 'Type a year above and click "+ Year" to begin planning your quarters, driving teams, and activities.'
+                    ? 'Type a year above and click "+ Year" to begin planning your theme, quarters, driving teams, and activities.'
                     : 'No annual strategic plan has been published yet.'}
                 </p>
               </div>
             ) : (
               <div className="space-y-5">
-                {/* YEAR THEME BAR */}
-                <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 space-y-2">
+                <div className="bg-gradient-to-br from-[#fef9ea] to-[#fffdf7] border border-[#ebc978] rounded-2xl p-4 sm:p-5 space-y-3">
                   <div className="flex items-center justify-between gap-2">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-amber-800">
-                      {activePlanYear} Theme
-                    </label>
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#8a5d05]">
+                      {activePlanYear} Theme, Scripture & Vision Note
+                    </span>
                     {isFullAdmin && (
                       <button
                         type="button"
@@ -1923,21 +1952,63 @@ export default function App() {
                       </button>
                     )}
                   </div>
+
                   {isFullAdmin ? (
-                    <input
-                      type="text"
-                      value={currentYearData.theme}
-                      onChange={(e) => handleUpdateYearTheme(e.target.value)}
-                      placeholder={`Type ${activePlanYear} theme...`}
-                      className="w-full bg-white border border-amber-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-900 focus:outline-none"
-                    />
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                        <div className="md:col-span-8">
+                          <label className="block text-[11px] font-bold text-[#0d2247] mb-1">Theme Title</label>
+                          <input
+                            type="text"
+                            value={currentYearData.theme}
+                            onChange={(e) => handleUpdateYearField('theme', e.target.value)}
+                            placeholder={`Type ${activePlanYear} theme...`}
+                            className="w-full bg-white border border-[#dfc078] rounded-xl px-3.5 py-2 text-sm font-bold text-[#0d2247] focus:outline-none focus:border-[#0d2247]"
+                          />
+                        </div>
+                        <div className="md:col-span-4">
+                          <label className="block text-[11px] font-bold text-[#0d2247] mb-1">Bible Reference</label>
+                          <input
+                            type="text"
+                            value={currentYearData.bibleReference}
+                            onChange={(e) => handleUpdateYearField('bibleReference', e.target.value)}
+                            placeholder="e.g., Romans 8:29..."
+                            className="w-full bg-white border border-[#dfc078] rounded-xl px-3.5 py-2 text-xs font-semibold text-[#0d2247] focus:outline-none focus:border-[#0d2247]"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#0d2247] mb-1">Theme Description / Summary</label>
+                        <textarea
+                          rows={2}
+                          value={currentYearData.themeDescription}
+                          onChange={(e) => handleUpdateYearField('themeDescription', e.target.value)}
+                          placeholder="Add a brief description or spiritual emphasis for this year's theme..."
+                          className="w-full bg-white border border-[#dfc078] rounded-xl px-3.5 py-2 text-xs text-slate-700 focus:outline-none focus:border-[#0d2247]"
+                        />
+                      </div>
+                    </div>
                   ) : (
-                    <div className="text-sm font-bold text-slate-900">{currentYearData.theme || '—'}</div>
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <span className="text-base font-extrabold text-[#0d2247]">
+                          {currentYearData.theme || '—'}
+                        </span>
+                        {currentYearData.bibleReference && (
+                          <span className="px-2.5 py-0.5 rounded-full bg-[#0d2247] text-[#fde047] text-[11px] font-bold">
+                            {currentYearData.bibleReference}
+                          </span>
+                        )}
+                      </div>
+                      {currentYearData.themeDescription && (
+                        <p className="text-xs text-slate-700 leading-relaxed">{currentYearData.themeDescription}</p>
+                      )}
+                    </div>
                   )}
                 </div>
 
-                {/* CLICK-TO-VIEW QUARTER TABS */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#e3e9f3] pb-3">
                   <div className="flex flex-wrap items-center gap-2">
                     {yearQuarterKeys.map(qKey => {
                       const qObj = currentYearData.quarters[qKey] || { team: '', activities: [] };
@@ -1948,16 +2019,20 @@ export default function App() {
                         <button
                           key={qKey}
                           type="button"
-                          onClick={() => setSelectedQuarterTab(qKey)}
+                          onClick={() => {
+                            setSelectedQuarterTab(qKey);
+                            setEditingActivityId(null);
+                            setEditActivityDraft(null);
+                          }}
                           className={`px-4 py-2 rounded-xl text-xs font-extrabold transition flex items-center gap-2 border ${
                             isSelected
-                              ? 'bg-slate-900 text-amber-300 border-slate-900 shadow-sm'
-                              : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                              ? 'bg-[#0d2247] text-[#fde047] border-[#0d2247] shadow-xs'
+                              : 'bg-[#f8fafd] hover:bg-[#eef3fa] text-[#0d2247] border-[#dce3f0]'
                           }`}
                         >
                           <span>{qKey}</span>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
-                            isSelected ? 'bg-slate-800 text-amber-200' : 'bg-white text-slate-600 border border-slate-200'
+                            isSelected ? 'bg-[#1a386e] text-[#fde047]' : 'bg-white text-slate-600 border border-[#dce3f0]'
                           }`}>
                             {doneCount}/{totalCount}
                           </span>
@@ -1973,11 +2048,11 @@ export default function App() {
                         placeholder="Custom quarter tab..."
                         value={customQuarterInput}
                         onChange={(e) => setCustomQuarterInput(e.target.value)}
-                        className="w-36 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-slate-50"
+                        className="w-36 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-[#f8fafd]"
                       />
                       <button
                         type="submit"
-                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold rounded-lg"
+                        className="px-3 py-1.5 bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6] text-xs font-bold rounded-lg"
                       >
                         + Quarter
                       </button>
@@ -1985,97 +2060,118 @@ export default function App() {
                   )}
                 </div>
 
-                {/* SINGLE SELECTED QUARTER WORKSPACE */}
-                <div className="border border-slate-200 rounded-2xl p-5 bg-slate-50/40 space-y-5">
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white border border-slate-200 rounded-xl p-4">
-                    <div className="flex-1 space-y-1">
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        {activeQuarterKey} Driving Team
+                <div className="border border-[#dce3f0] rounded-2xl p-4 sm:p-5 bg-[#f9fbfe] space-y-5">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-white border border-[#dce3f0] rounded-2xl p-4">
+                    <div className="lg:col-span-8 space-y-1.5">
+                      <label className="block text-[11px] font-extrabold uppercase tracking-wider text-[#0d2247]">
+                        {activeQuarterKey} Driving Team (Multiple Names / Leads)
                       </label>
                       {isFullAdmin ? (
-                        <input
-                          type="text"
+                        <textarea
+                          rows={3}
                           value={activeQuarterData.team || ''}
                           onChange={(e) => handleUpdateQuarterTeam(e.target.value)}
-                          placeholder={`Type team driving ${activeQuarterKey}...`}
-                          className="w-full max-w-md px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-lg bg-amber-50/50 focus:outline-none focus:border-amber-500"
+                          placeholder={`Type team members or lead driving ${activeQuarterKey}...`}
+                          className="w-full px-3.5 py-2 text-xs font-semibold text-[#0d2247] border border-[#cbd5e6] rounded-xl bg-[#fcfdfe] focus:outline-none focus:border-[#0d2247] leading-relaxed"
                         />
                       ) : (
-                        <div className="text-sm font-bold text-slate-900">
+                        <div className="p-3 rounded-xl bg-[#f8fafd] border border-[#e3e9f3] text-xs font-semibold text-[#0d2247] whitespace-pre-line min-h-[72px]">
                           {activeQuarterData.team || 'Unassigned'}
                         </div>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2.5 text-xs">
-                      <span className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-800 font-bold border border-slate-200">
-                        Activities: {quarterActivities.length}
-                      </span>
-                      <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200">
-                        Executed: {executedCount}
-                      </span>
-                      <span className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-800 font-bold border border-rose-200">
-                        Not Executed: {notExecutedCount}
-                      </span>
+                    <div className="lg:col-span-4 flex flex-col justify-between bg-[#f8fafd] border border-[#e3e9f3] rounded-xl p-3.5 space-y-2.5">
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        {activeQuarterKey} Execution Overview
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="bg-white border border-[#dce3f0] rounded-lg p-2">
+                          <div className="text-[10px] text-slate-500">Activities</div>
+                          <div className="text-base font-extrabold text-[#0d2247]">{quarterActivities.length}</div>
+                        </div>
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+                          <div className="text-[10px] text-emerald-700">Executed</div>
+                          <div className="text-base font-extrabold text-emerald-800">{executedCount}</div>
+                        </div>
+                        <div className="bg-rose-50 border border-rose-200 rounded-lg p-2">
+                          <div className="text-[10px] text-rose-700">Not Exec.</div>
+                          <div className="text-base font-extrabold text-rose-800">{notExecutedCount}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* ADD ACTIVITY FOR SELECTED QUARTER */}
                   {isFullAdmin && (
-                    <form onSubmit={handleAddQuarterActivity} className="bg-white border border-slate-200 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
-                      <div className="lg:col-span-4">
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">Activity</label>
-                        <input
-                          type="text"
-                          value={newActivityForm.activity}
-                          onChange={(e) => setNewActivityForm({ ...newActivityForm, activity: e.target.value })}
-                          placeholder={`Type ${activeQuarterKey} activity...`}
-                          className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
-                          required
-                        />
+                    <form onSubmit={handleAddQuarterActivity} className="bg-white border border-[#dce3f0] rounded-2xl p-4 space-y-3">
+                      <div className="text-xs font-bold text-[#0d2247]">Add New Activity to {activeQuarterKey}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
+                        <div className="lg:col-span-5">
+                          <label className="block text-[11px] font-semibold text-[#0d2247] mb-1">Activity</label>
+                          <input
+                            type="text"
+                            value={newActivityForm.activity}
+                            onChange={(e) => setNewActivityForm({ ...newActivityForm, activity: e.target.value })}
+                            placeholder={`Type ${activeQuarterKey} activity...`}
+                            className="w-full px-3 py-1.5 text-xs font-medium border border-slate-300 rounded-lg"
+                            required
+                          />
+                        </div>
+
+                        <div className="lg:col-span-3">
+                          <label className="block text-[11px] font-semibold text-[#0d2247] mb-1">Date</label>
+                          <input
+                            type="text"
+                            value={newActivityForm.date}
+                            onChange={(e) => setNewActivityForm({ ...newActivityForm, date: e.target.value })}
+                            placeholder="Type date or date range..."
+                            className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                          />
+                        </div>
+
+                        <div className="lg:col-span-2">
+                          <label className="block text-[11px] font-semibold text-[#0d2247] mb-1">Target</label>
+                          <input
+                            type="text"
+                            value={newActivityForm.target}
+                            onChange={(e) => setNewActivityForm({ ...newActivityForm, target: e.target.value })}
+                            placeholder="Type target..."
+                            className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                          />
+                        </div>
+
+                        <div className="lg:col-span-2">
+                          <button
+                            type="submit"
+                            className="w-full px-4 py-1.5 bg-[#0d2247] hover:bg-[#163466] text-[#fde047] text-xs font-bold rounded-lg transition"
+                          >
+                            + Add to {activeQuarterKey}
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="lg:col-span-3">
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">Date</label>
-                        <input
-                          type="text"
-                          value={newActivityForm.date}
-                          onChange={(e) => setNewActivityForm({ ...newActivityForm, date: e.target.value })}
-                          placeholder="Type date or date range..."
-                          className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
+                      <div>
+                        <label className="block text-[11px] font-semibold text-[#0d2247] mb-1">
+                          Activity Description / Notes (up to ~3 lines)
+                        </label>
+                        <textarea
+                          rows={3}
+                          value={newActivityForm.description}
+                          onChange={(e) => setNewActivityForm({ ...newActivityForm, description: e.target.value })}
+                          placeholder="Add extra context, scope, venue, or instructions for this activity..."
+                          className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-[#fcfdfe] leading-relaxed"
                         />
-                      </div>
-
-                      <div className="lg:col-span-3">
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">Target</label>
-                        <input
-                          type="text"
-                          value={newActivityForm.target}
-                          onChange={(e) => setNewActivityForm({ ...newActivityForm, target: e.target.value })}
-                          placeholder="Type target..."
-                          className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg"
-                        />
-                      </div>
-
-                      <div className="lg:col-span-2">
-                        <button
-                          type="submit"
-                          className="w-full px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-lg"
-                        >
-                          + Add to {activeQuarterKey}
-                        </button>
                       </div>
                     </form>
                   )}
 
-                  {/* SELECTED QUARTER ACTIVITIES TABLE */}
-                  <div className="bg-white border border-slate-200 rounded-xl overflow-x-auto">
-                    <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-900">
+                  <div className="bg-white border border-[#dce3f0] rounded-2xl overflow-hidden">
+                    <div className="px-4 py-3 bg-[#0d2247] text-white flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <span className="font-bold">
                         {activePlanYear} • {activeQuarterKey} Activities
-                        {activeQuarterData.team ? ` — Driven by ${activeQuarterData.team}` : ''}
+                        {activeQuarterData.team ? ` — ${activeQuarterData.team.replace(/\n+/g, ', ')}` : ''}
                       </span>
-                      <span className="text-slate-500">{quarterActivities.length} item(s)</span>
+                      <span className="text-[#fde047] font-semibold">{quarterActivities.length} item(s)</span>
                     </div>
 
                     {quarterActivities.length === 0 ? (
@@ -2083,120 +2179,189 @@ export default function App() {
                         No activities added for {activeQuarterKey} in {activePlanYear} yet.
                       </div>
                     ) : (
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="border-b border-slate-200 text-slate-500 bg-white">
-                            <th className="py-2.5 px-3">Activity</th>
-                            <th className="py-2.5 px-3">Date</th>
-                            <th className="py-2.5 px-3">Target</th>
-                            <th className="py-2.5 px-3">Status Tick (Executed / Not Executed)</th>
-                            {isFullAdmin && <th className="py-2.5 px-3 text-right">Remove</th>}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {quarterActivities.map(item => {
-                            const isExec = item.executionStatus === 'executed';
-                            const isNotExec = item.executionStatus === 'not_executed';
-                            return (
-                              <tr key={item.id} className="hover:bg-slate-50/80 align-middle">
-                                <td className="py-2.5 px-3 min-w-[210px]">
-                                  {isFullAdmin ? (
-                                    <input
-                                      type="text"
-                                      value={item.activity}
-                                      onChange={(e) => handleUpdateActivityField(item.id, 'activity', e.target.value)}
-                                      className="w-full px-2 py-1 text-xs font-bold text-slate-900 border border-transparent hover:border-slate-300 focus:border-amber-500 rounded bg-transparent focus:bg-white"
-                                    />
-                                  ) : (
-                                    <span className="font-bold text-slate-900">{item.activity}</span>
-                                  )}
-                                </td>
+                      <div className="divide-y divide-[#e6ecf6]">
+                        {quarterActivities.map((item, idx) => {
+                          const isExec = item.executionStatus === 'executed';
+                          const isNotExec = item.executionStatus === 'not_executed';
+                          const isEditingThis = isFullAdmin && editingActivityId === item.id && editActivityDraft;
 
-                                <td className="py-2.5 px-3 min-w-[140px]">
-                                  {isFullAdmin ? (
-                                    <input
-                                      type="text"
-                                      value={item.date}
-                                      onChange={(e) => handleUpdateActivityField(item.id, 'date', e.target.value)}
-                                      placeholder="Type date..."
-                                      className="w-full px-2 py-1 text-xs text-slate-700 border border-transparent hover:border-slate-300 focus:border-amber-500 rounded bg-transparent focus:bg-white"
-                                    />
-                                  ) : (
-                                    <span className="text-slate-700">{item.date || '—'}</span>
-                                  )}
-                                </td>
-
-                                <td className="py-2.5 px-3 min-w-[150px]">
-                                  {isFullAdmin ? (
-                                    <input
-                                      type="text"
-                                      value={item.target}
-                                      onChange={(e) => handleUpdateActivityField(item.id, 'target', e.target.value)}
-                                      placeholder="Type target..."
-                                      className="w-full px-2 py-1 text-xs text-slate-700 border border-transparent hover:border-slate-300 focus:border-amber-500 rounded bg-transparent focus:bg-white"
-                                    />
-                                  ) : (
-                                    <span className="text-slate-700">{item.target || '—'}</span>
-                                  )}
-                                </td>
-
-                                <td className="py-2.5 px-3 whitespace-nowrap">
-                                  <div className="inline-flex items-center gap-2">
+                          return (
+                            <div key={item.id} className="p-4 hover:bg-[#f8fafd] transition">
+                              {isEditingThis ? (
+                                <div className="bg-[#fef9ea] border border-[#f2d488] rounded-xl p-4 space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#8a5d05]">
+                                      Editing Activity #{idx + 1} ({activeQuarterKey})
+                                    </span>
                                     <button
                                       type="button"
-                                      disabled={!isFullAdmin}
-                                      onClick={() => handleSetActivityStatus(item.id, 'executed')}
-                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
-                                        isExec
-                                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                                          : 'bg-white text-slate-600 border-slate-300 hover:bg-emerald-50'
-                                      } ${!isFullAdmin ? 'cursor-default opacity-90' : ''}`}
+                                      onClick={() => {
+                                        setEditingActivityId(null);
+                                        setEditActivityDraft(null);
+                                      }}
+                                      className="text-slate-400 hover:text-slate-600"
                                     >
-                                      <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
-                                        isExec ? 'bg-white text-emerald-700 border-white' : 'border-slate-400'
-                                      }`}>
-                                        {isExec && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                                      </span>
-                                      Executed
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      disabled={!isFullAdmin}
-                                      onClick={() => handleSetActivityStatus(item.id, 'not_executed')}
-                                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
-                                        isNotExec
-                                          ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
-                                          : 'bg-white text-slate-600 border-slate-300 hover:bg-rose-50'
-                                      } ${!isFullAdmin ? 'cursor-default opacity-90' : ''}`}
-                                    >
-                                      <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
-                                        isNotExec ? 'bg-white text-rose-700 border-white' : 'border-slate-400'
-                                      }`}>
-                                        {isNotExec && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                                      </span>
-                                      Not Executed
+                                      <X className="w-4 h-4" />
                                     </button>
                                   </div>
-                                </td>
 
-                                {isFullAdmin && (
-                                  <td className="py-2.5 px-3 text-right">
+                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                    <div className="sm:col-span-6">
+                                      <label className="block text-[11px] font-semibold text-[#0d2247] mb-1">Activity</label>
+                                      <input
+                                        type="text"
+                                        value={editActivityDraft.activity}
+                                        onChange={(e) => setEditActivityDraft({ ...editActivityDraft, activity: e.target.value })}
+                                        className="w-full px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-lg bg-white"
+                                      />
+                                    </div>
+                                    <div className="sm:col-span-3">
+                                      <label className="block text-[11px] font-semibold text-[#0d2247] mb-1">Date</label>
+                                      <input
+                                        type="text"
+                                        value={editActivityDraft.date}
+                                        onChange={(e) => setEditActivityDraft({ ...editActivityDraft, date: e.target.value })}
+                                        className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                                      />
+                                    </div>
+                                    <div className="sm:col-span-3">
+                                      <label className="block text-[11px] font-semibold text-[#0d2247] mb-1">Target</label>
+                                      <input
+                                        type="text"
+                                        value={editActivityDraft.target}
+                                        onChange={(e) => setEditActivityDraft({ ...editActivityDraft, target: e.target.value })}
+                                        className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-[11px] font-semibold text-[#0d2247] mb-1">
+                                      Description (up to ~3 lines)
+                                    </label>
+                                    <textarea
+                                      rows={3}
+                                      value={editActivityDraft.description}
+                                      onChange={(e) => setEditActivityDraft({ ...editActivityDraft, description: e.target.value })}
+                                      className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg bg-white leading-relaxed"
+                                    />
+                                  </div>
+
+                                  <div className="flex justify-end gap-2">
                                     <button
                                       type="button"
-                                      onClick={() => handleDeleteQuarterActivity(item.id)}
-                                      title="Delete activity"
-                                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                                      onClick={() => {
+                                        setEditingActivityId(null);
+                                        setEditActivityDraft(null);
+                                      }}
+                                      className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
                                     >
-                                      <Trash2 className="w-3.5 h-3.5" />
+                                      Cancel
                                     </button>
-                                  </td>
-                                )}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                                    <button
+                                      type="button"
+                                      onClick={handleSaveEditedActivity}
+                                      className="inline-flex items-center gap-1 px-4 py-1.5 bg-[#0d2247] hover:bg-[#163466] text-[#fde047] text-xs font-bold rounded-lg"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                      Save Activity
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                                  <div className="space-y-1.5 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="px-2 py-0.5 rounded bg-[#eef2f9] text-[#0d2247] text-[10px] font-extrabold">
+                                        #{idx + 1}
+                                      </span>
+                                      <h4 className="text-sm font-bold text-[#0d2247] break-words">
+                                        {item.activity}
+                                      </h4>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                                      <span>
+                                        <strong className="text-[#0d2247]">Date:</strong> {item.date || '—'}
+                                      </span>
+                                      <span>
+                                        <strong className="text-[#0d2247]">Target:</strong> {item.target || '—'}
+                                      </span>
+                                    </div>
+
+                                    <div className="mt-1.5 p-2.5 rounded-xl bg-[#f8fafd] border border-[#e6ecf6] text-xs text-slate-700 leading-relaxed line-clamp-3 min-h-[60px]">
+                                      {item.description ? item.description : (
+                                        <span className="text-slate-400 italic">No extra description added for this activity.</span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-wrap sm:flex-nowrap lg:flex-col items-start sm:items-center lg:items-end justify-between gap-2 shrink-0">
+                                    <div className="inline-flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        disabled={!isFullAdmin}
+                                        onClick={() => handleSetActivityStatus(item.id, 'executed')}
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
+                                          isExec
+                                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                                            : 'bg-white text-slate-600 border-slate-300 hover:bg-emerald-50'
+                                        } ${!isFullAdmin ? 'cursor-default opacity-90' : ''}`}
+                                      >
+                                        <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
+                                          isExec ? 'bg-white text-emerald-700 border-white' : 'border-slate-400'
+                                        }`}>
+                                          {isExec && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                        </span>
+                                        Executed
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        disabled={!isFullAdmin}
+                                        onClick={() => handleSetActivityStatus(item.id, 'not_executed')}
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
+                                          isNotExec
+                                            ? 'bg-rose-600 text-white border-rose-600 shadow-2xs'
+                                            : 'bg-white text-slate-600 border-slate-300 hover:bg-rose-50'
+                                        } ${!isFullAdmin ? 'cursor-default opacity-90' : ''}`}
+                                      >
+                                        <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
+                                          isNotExec ? 'bg-white text-rose-700 border-white' : 'border-slate-400'
+                                        }`}>
+                                          {isNotExec && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                        </span>
+                                        Not Executed
+                                      </button>
+                                    </div>
+
+                                    {isFullAdmin && (
+                                      <div className="inline-flex items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleStartEditActivity(item)}
+                                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6]"
+                                        >
+                                          <Edit3 className="w-3 h-3" />
+                                          Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteQuarterActivity(item.id)}
+                                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                          Delete
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -2205,11 +2370,11 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 4: ATTENDANCE ENTRY & CLICK-A-DATE / CLICK-A-MONTH EXPLORER */}
+    {/* TAB 4: ATTENDANCE ENTRY & CLICK-A-DATE / CLICK-A-MONTH EXPLORER */}
         {activeTab === 'attendance' && canEnterData && (
           <div className="space-y-6">
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <h3 className="font-bold text-slate-900 text-base mb-1">Log Service Attendance</h3>
+            <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
+              <h3 className="font-bold text-[#0d2247] text-base mb-1">Log Service Attendance</h3>
               <p className="text-xs text-slate-500 mb-4">
                 Enter your Location and Service Type manually, and log Adults (Male & Female), Youth (Boys & Girls), Children (Boys & Girls), and Visitors (Male & Female)
               </p>
@@ -2217,7 +2382,7 @@ export default function App() {
               <form onSubmit={handleAddAttendance} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Service Date</label>
+                    <label className="block text-xs font-semibold text-[#0d2247] mb-1">Service Date</label>
                     <input
                       type="date"
                       value={attForm.date}
@@ -2228,7 +2393,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Location (Type Yourself)</label>
+                    <label className="block text-xs font-semibold text-[#0d2247] mb-1">Location (Type Yourself)</label>
                     <input
                       type="text"
                       list="dlbc-locations-list"
@@ -2241,7 +2406,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Service Type (Type Yourself)</label>
+                    <label className="block text-xs font-semibold text-[#0d2247] mb-1">Service Type (Type Yourself)</label>
                     <input
                       type="text"
                       list="dlbc-service-types-list"
@@ -2254,7 +2419,7 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Recorded By (Name)</label>
+                    <label className="block text-xs font-semibold text-[#0d2247] mb-1">Recorded By (Name)</label>
                     <input
                       type="text"
                       placeholder="Type your name..."
@@ -2267,9 +2432,9 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="p-3.5 rounded-xl bg-[#f8fafd] border border-[#dce3f0] space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900">Adults</span>
+                      <span className="text-xs font-bold text-[#0d2247]">Adults</span>
                       <span className="text-[11px] font-semibold text-slate-500">
                         Subtotal: {(Number(attForm.adultMale) || 0) + (Number(attForm.adultFemale) || 0)}
                       </span>
@@ -2402,7 +2567,7 @@ export default function App() {
 
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-1">
                   <div className="flex flex-wrap items-center gap-4">
-                    <div className="px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-950">
+                    <div className="px-3.5 py-2 rounded-xl bg-[#fef9ea] border border-[#f2d488] text-xs font-bold text-[#0d2247]">
                       Grand Total:{' '}
                       <span className="text-sm font-extrabold">
                         {(Number(attForm.adultMale) || 0) +
@@ -2418,7 +2583,7 @@ export default function App() {
 
                     {isFullAdmin && (
                       <div className="w-48">
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        <label className="block text-[11px] font-semibold text-[#0d2247] mb-1">
                           Offering (PLN) <span className="text-slate-400 font-normal">(Optional)</span>
                         </label>
                         <input
@@ -2434,18 +2599,17 @@ export default function App() {
                     )}
                   </div>
 
-                  <button type="submit" className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                  <button type="submit" className="px-5 py-2 bg-[#0d2247] hover:bg-[#163466] text-white text-xs font-semibold rounded-lg">
                     + Save Attendance Record
                   </button>
                 </div>
               </form>
             </div>
 
-            {/* CLICK-A-DATE OR CLICK-A-MONTH TABULAR EXPLORER */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-3 border-b border-slate-200">
+            <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-3 border-b border-[#e3e9f3]">
                 <div>
-                  <h4 className="font-bold text-slate-900 text-sm">
+                  <h4 className="font-bold text-[#0d2247] text-sm">
                     Attendance Explorer ({attendance.length} total session{attendance.length === 1 ? '' : 's'} logged)
                   </h4>
                   <p className="text-xs text-slate-500">
@@ -2453,14 +2617,14 @@ export default function App() {
                   </p>
                 </div>
 
-                <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200 self-start">
+                <div className="inline-flex rounded-xl bg-[#f4f6fa] p-1 border border-[#dce3f0] self-start">
                   <button
                     type="button"
                     onClick={() => setAttBrowseMode('date')}
                     className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
                       attBrowseMode === 'date'
-                        ? 'bg-slate-900 text-amber-300 shadow-sm'
-                        : 'text-slate-700 hover:text-slate-900'
+                        ? 'bg-[#0d2247] text-[#fde047] shadow-2xs'
+                        : 'text-[#0d2247] hover:bg-white/70'
                     }`}
                   >
                     By Date
@@ -2470,8 +2634,8 @@ export default function App() {
                     onClick={() => setAttBrowseMode('month')}
                     className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
                       attBrowseMode === 'month'
-                        ? 'bg-slate-900 text-amber-300 shadow-sm'
-                        : 'text-slate-700 hover:text-slate-900'
+                        ? 'bg-[#0d2247] text-[#fde047] shadow-2xs'
+                        : 'text-[#0d2247] hover:bg-white/70'
                     }`}
                   >
                     By Month
@@ -2480,8 +2644,8 @@ export default function App() {
               </div>
 
               {attendance.length === 0 ? (
-                <div className="py-10 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/60">
-                  <p className="text-xs font-semibold text-slate-700">No service attendance records logged yet.</p>
+                <div className="py-10 text-center border border-dashed border-[#cdd7e8] rounded-xl bg-[#f8fafd]">
+                  <p className="text-xs font-semibold text-[#0d2247]">No service attendance records logged yet.</p>
                   <p className="text-xs text-slate-500 mt-1">Once you save a service above, you can click its Date or Month here to view it in tabular form.</p>
                 </div>
               ) : attBrowseMode === 'date' ? (
@@ -2498,12 +2662,12 @@ export default function App() {
                           onClick={() => setSelectedAttDate(dt)}
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
                             selected
-                              ? 'bg-slate-900 text-amber-300 border-slate-900 shadow-sm'
-                              : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                              ? 'bg-[#0d2247] text-[#fde047] border-[#0d2247] shadow-2xs'
+                              : 'bg-[#f8fafd] hover:bg-[#eef3fa] text-[#0d2247] border-[#dce3f0]'
                           }`}
                         >
                           {dt}{' '}
-                          <span className={`ml-1 text-[10px] ${selected ? 'text-amber-200' : 'text-slate-400'}`}>
+                          <span className={`ml-1 text-[10px] ${selected ? 'text-[#fde047]/80' : 'text-slate-400'}`}>
                             ({countForDay})
                           </span>
                         </button>
@@ -2511,21 +2675,21 @@ export default function App() {
                     })}
                   </div>
 
-                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                    <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-900">Tabular Breakdown for Date: {activeAttDate}</span>
+                  <div className="overflow-x-auto border border-[#dce3f0] rounded-xl">
+                    <div className="bg-[#f8fafd] px-4 py-2.5 border-b border-[#dce3f0] flex items-center justify-between text-xs">
+                      <span className="font-bold text-[#0d2247]">Tabular Breakdown for Date: {activeAttDate}</span>
                       <span className="text-slate-500">{dayRecords.length} session(s)</span>
                     </div>
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="border-b border-slate-200 text-slate-500 bg-white">
+                        <tr className="border-b border-[#dce3f0] text-slate-500 bg-white">
                           <th className="py-2.5 px-3">Location</th>
                           <th className="py-2.5 px-3">Service Type</th>
                           <th className="py-2.5 px-3">Adults (M / F)</th>
                           <th className="py-2.5 px-3">Youth (B / G)</th>
                           <th className="py-2.5 px-3">Children (B / G)</th>
                           <th className="py-2.5 px-3">Visitors (M / F)</th>
-                          <th className="py-2.5 px-3 font-bold text-slate-800">Total</th>
+                          <th className="py-2.5 px-3 font-bold text-[#0d2247]">Total</th>
                           {isFullAdmin && <th className="py-2.5 px-3">Offering</th>}
                           <th className="py-2.5 px-3">Recorded By</th>
                           {isFullAdmin && <th className="py-2.5 px-3 text-right">Action</th>}
@@ -2535,15 +2699,15 @@ export default function App() {
                         {dayRecords.map(rec => {
                           const c = getRecordCounts(rec);
                           return (
-                            <tr key={rec.id} className="hover:bg-slate-50">
-                              <td className="py-2.5 px-3 font-semibold text-slate-800">{rec.location}</td>
+                            <tr key={rec.id} className="hover:bg-[#f8fafd]">
+                              <td className="py-2.5 px-3 font-semibold text-[#0d2247]">{rec.location}</td>
                               <td className="py-2.5 px-3">
-                                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-900">
+                                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#fef6df] text-[#8a5d05]">
                                   {rec.serviceType}
                                 </span>
                               </td>
                               <td className="py-2.5 px-3 whitespace-nowrap">
-                                <span className="font-bold text-slate-900">{c.adults}</span>{' '}
+                                <span className="font-bold text-[#0d2247]">{c.adults}</span>{' '}
                                 <span className="text-slate-500">({c.adultMale}M / {c.adultFemale}F)</span>
                               </td>
                               <td className="py-2.5 px-3 whitespace-nowrap">
@@ -2558,7 +2722,7 @@ export default function App() {
                                 <span className="font-bold text-purple-800">{c.visitors}</span>{' '}
                                 <span className="text-slate-500">({c.visitorMale}M / {c.visitorFemale}F)</span>
                               </td>
-                              <td className="py-2.5 px-3 font-extrabold text-slate-900">{c.total}</td>
+                              <td className="py-2.5 px-3 font-extrabold text-[#0d2247]">{c.total}</td>
                               {isFullAdmin && <td className="py-2.5 px-3 font-mono whitespace-nowrap">{rec.offeringPln ? `${rec.offeringPln} PLN` : '—'}</td>}
                               <td className="py-2.5 px-3 font-semibold text-slate-700">{rec.recordedBy}</td>
                               {isFullAdmin && (
@@ -2594,12 +2758,12 @@ export default function App() {
                           onClick={() => setSelectedAttMonth(mo)}
                           className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
                             selected
-                              ? 'bg-slate-900 text-amber-300 border-slate-900 shadow-sm'
-                              : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                              ? 'bg-[#0d2247] text-[#fde047] border-[#0d2247] shadow-2xs'
+                              : 'bg-[#f8fafd] hover:bg-[#eef3fa] text-[#0d2247] border-[#dce3f0]'
                           }`}
                         >
                           {mo}{' '}
-                          <span className={`ml-1 text-[10px] ${selected ? 'text-amber-200' : 'text-slate-400'}`}>
+                          <span className={`ml-1 text-[10px] ${selected ? 'text-[#fde047]/80' : 'text-slate-400'}`}>
                             ({countForMonth})
                           </span>
                         </button>
@@ -2607,14 +2771,14 @@ export default function App() {
                     })}
                   </div>
 
-                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                    <div className="bg-amber-50/70 px-4 py-2.5 border-b border-amber-200 flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-900">Monthly Summary Table for {activeAttMonth}</span>
+                  <div className="overflow-x-auto border border-[#dce3f0] rounded-xl">
+                    <div className="bg-[#fef9ea] px-4 py-2.5 border-b border-[#f2d488] flex items-center justify-between text-xs">
+                      <span className="font-bold text-[#0d2247]">Monthly Summary Table for {activeAttMonth}</span>
                       <span className="text-slate-600">{monthRecords.length} session(s)</span>
                     </div>
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="border-b border-slate-200 text-slate-500 bg-white">
+                        <tr className="border-b border-[#dce3f0] text-slate-500 bg-white">
                           <th className="py-2.5 px-3">Location</th>
                           <th className="py-2.5 px-3">Service Type</th>
                           <th className="py-2.5 px-3">Sessions</th>
@@ -2622,26 +2786,26 @@ export default function App() {
                           <th className="py-2.5 px-3">Youth</th>
                           <th className="py-2.5 px-3">Children</th>
                           <th className="py-2.5 px-3">Visitors</th>
-                          <th className="py-2.5 px-3 font-bold text-slate-800">Monthly Total</th>
+                          <th className="py-2.5 px-3 font-bold text-[#0d2247]">Monthly Total</th>
                           <th className="py-2.5 px-3 font-bold text-emerald-800">Avg / Service</th>
                           {isFullAdmin && <th className="py-2.5 px-3">Offering</th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
                         {monthRollupByGroup.map(row => (
-                          <tr key={row.key} className="hover:bg-slate-50">
-                            <td className="py-2.5 px-3 font-semibold text-slate-800">{row.location}</td>
+                          <tr key={row.key} className="hover:bg-[#f8fafd]">
+                            <td className="py-2.5 px-3 font-semibold text-[#0d2247]">{row.location}</td>
                             <td className="py-2.5 px-3">
-                              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-900">
+                              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[#fef6df] text-[#8a5d05]">
                                 {row.serviceType}
                               </span>
                             </td>
                             <td className="py-2.5 px-3 font-semibold">{row.sessions}</td>
-                            <td className="py-2.5 px-3 font-bold text-slate-900">{row.adults}</td>
+                            <td className="py-2.5 px-3 font-bold text-[#0d2247]">{row.adults}</td>
                             <td className="py-2.5 px-3 font-bold text-emerald-800">{row.youths}</td>
                             <td className="py-2.5 px-3 font-bold text-blue-800">{row.children}</td>
                             <td className="py-2.5 px-3 font-bold text-purple-800">{row.visitors}</td>
-                            <td className="py-2.5 px-3 font-extrabold text-slate-900">{row.total}</td>
+                            <td className="py-2.5 px-3 font-extrabold text-[#0d2247]">{row.total}</td>
                             <td className="py-2.5 px-3 font-bold text-emerald-700">
                               {row.sessions ? (row.total / row.sessions).toFixed(1) : 0}
                             </td>
@@ -2656,13 +2820,13 @@ export default function App() {
                     </table>
                   </div>
 
-                  <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                    <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 text-xs font-bold text-slate-800">
+                  <div className="overflow-x-auto border border-[#dce3f0] rounded-xl">
+                    <div className="bg-[#f8fafd] px-4 py-2.5 border-b border-[#dce3f0] text-xs font-bold text-[#0d2247]">
                       Sessions Logged in {activeAttMonth}
                     </div>
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="border-b border-slate-200 text-slate-500 bg-white">
+                        <tr className="border-b border-[#dce3f0] text-slate-500 bg-white">
                           <th className="py-2 px-3">Date</th>
                           <th className="py-2 px-3">Location</th>
                           <th className="py-2 px-3">Service Type</th>
@@ -2670,7 +2834,7 @@ export default function App() {
                           <th className="py-2 px-3">Youth (B/G)</th>
                           <th className="py-2 px-3">Children (B/G)</th>
                           <th className="py-2 px-3">Visitors (M/F)</th>
-                          <th className="py-2 px-3 font-bold text-slate-800">Total</th>
+                          <th className="py-2 px-3 font-bold text-[#0d2247]">Total</th>
                           {isFullAdmin && <th className="py-2 px-3 text-right">Action</th>}
                         </tr>
                       </thead>
@@ -2684,17 +2848,17 @@ export default function App() {
                                 setSelectedAttDate(rec.date);
                                 setAttBrowseMode('date');
                               }}
-                              className="hover:bg-amber-50/40 cursor-pointer"
+                              className="hover:bg-[#fef9ea]/60 cursor-pointer"
                               title="Click to inspect this exact date"
                             >
-                              <td className="py-2 px-3 font-semibold text-amber-800 underline">{rec.date}</td>
-                              <td className="py-2 px-3 font-semibold text-slate-800">{rec.location}</td>
+                              <td className="py-2 px-3 font-semibold text-[#8a5d05] underline">{rec.date}</td>
+                              <td className="py-2 px-3 font-semibold text-[#0d2247]">{rec.location}</td>
                               <td className="py-2 px-3">{rec.serviceType}</td>
                               <td className="py-2 px-3 whitespace-nowrap">{c.adults} ({c.adultMale}M/{c.adultFemale}F)</td>
                               <td className="py-2 px-3 whitespace-nowrap">{c.youths} ({c.youthBoys}B/{c.youthGirls}G)</td>
                               <td className="py-2 px-3 whitespace-nowrap">{c.children} ({c.childrenBoys}B/{c.childrenGirls}G)</td>
                               <td className="py-2 px-3 whitespace-nowrap">{c.visitors} ({c.visitorMale}M/{c.visitorFemale}F)</td>
-                              <td className="py-2 px-3 font-extrabold text-slate-900">{c.total}</td>
+                              <td className="py-2 px-3 font-extrabold text-[#0d2247]">{c.total}</td>
                               {isFullAdmin && (
                                 <td
                                   className="py-2 px-3 text-right"
@@ -2724,21 +2888,21 @@ export default function App() {
         {/* TAB 5: NEWCOMERS */}
         {activeTab === 'newcomers' && canEnterData && (
           <div className="space-y-6">
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <h3 className="font-bold text-slate-900 text-base mb-1">Register First-Timer / Newcomer</h3>
+            <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
+              <h3 className="font-bold text-[#0d2247] text-base mb-1">Register First-Timer / Newcomer</h3>
               <p className="text-xs text-slate-500 mb-4">Active view displays newcomers by selected Month or Quarter; older records can be archived safely.</p>
 
               <form onSubmit={handleAddNewcomer} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Full Name</label>
                   <input type="text" value={ncForm.fullName} onChange={(e) => setNcForm({ ...ncForm, fullName: e.target.value })} placeholder="Type full name..." className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Phone Number</label>
                   <input type="text" value={ncForm.phone} onChange={(e) => setNcForm({ ...ncForm, phone: e.target.value })} placeholder="Type phone..." className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Location (Type Yourself)</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Location (Type Yourself)</label>
                   <input
                     type="text"
                     list="dlbc-locations-list"
@@ -2750,37 +2914,37 @@ export default function App() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Visit Date</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Visit Date</label>
                   <input type="date" value={ncForm.visitDate} onChange={(e) => setNcForm({ ...ncForm, visitDate: e.target.value })} className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Follow-Up Worker</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Follow-Up Worker</label>
                   <input type="text" value={ncForm.assignedFollowUp} onChange={(e) => setNcForm({ ...ncForm, assignedFollowUp: e.target.value })} placeholder="Type worker name..." className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg" />
                 </div>
-                <button type="submit" className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                <button type="submit" className="px-4 py-1.5 bg-[#0d2247] hover:bg-[#163466] text-white text-xs font-semibold rounded-lg">
                   + Save Newcomer
                 </button>
               </form>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
+            <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b border-[#e3e9f3]">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => setNcViewMode('month')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${ncViewMode === 'month' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${ncViewMode === 'month' ? 'bg-[#0d2247] text-white' : 'bg-[#f4f6fa] text-[#0d2247]'}`}
                   >
                     Monthly View
                   </button>
                   <button
                     onClick={() => setNcViewMode('quarter')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${ncViewMode === 'quarter' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${ncViewMode === 'quarter' ? 'bg-[#0d2247] text-white' : 'bg-[#f4f6fa] text-[#0d2247]'}`}
                   >
                     Quarterly View
                   </button>
                   <button
                     onClick={() => setNcViewMode('archived')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 ${ncViewMode === 'archived' ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 ${ncViewMode === 'archived' ? 'bg-[#9a6b06] text-white' : 'bg-[#fef9ea] text-[#8a5d05] border border-[#f2d488]'}`}
                   >
                     <Archive className="w-3.5 h-3.5" />
                     Archived Vault ({archivedNewcomersCount})
@@ -2800,7 +2964,7 @@ export default function App() {
                       type="text"
                       value={selectedQuarter}
                       onChange={(e) => setSelectedQuarter(e.target.value)}
-                      placeholder="Type quarter (e.g. 2026-Q4)..."
+                      placeholder="Type quarter..."
                       className="px-2.5 py-1 text-xs border border-slate-300 rounded-lg w-32"
                     />
                   </div>
@@ -2813,7 +2977,7 @@ export default function App() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="border-b border-slate-200 text-slate-500">
+                      <tr className="border-b border-[#dce3f0] text-slate-500">
                         <th className="py-2">Name</th>
                         <th className="py-2">Phone</th>
                         <th className="py-2">Location</th>
@@ -2825,8 +2989,8 @@ export default function App() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {visibleNewcomers.map(nc => (
-                        <tr key={nc.id} className="hover:bg-slate-50">
-                          <td className="py-2.5 font-bold text-slate-900">{nc.fullName}</td>
+                        <tr key={nc.id} className="hover:bg-[#f8fafd]">
+                          <td className="py-2.5 font-bold text-[#0d2247]">{nc.fullName}</td>
                           <td className="py-2.5 font-mono">{nc.phone}</td>
                           <td className="py-2.5">{nc.location}</td>
                           <td className="py-2.5">{nc.visitDate}</td>
@@ -2836,7 +3000,7 @@ export default function App() {
                             <button
                               onClick={() => toggleArchiveNewcomer(nc.id)}
                               title={nc.archived ? 'Restore to Active List' : 'Archive Newcomer'}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#fef9ea] hover:bg-[#fef0c7] text-[#8a5d05] border border-[#f2d488] font-semibold"
                             >
                               {nc.archived ? <RotateCcw className="w-3 h-3" /> : <Archive className="w-3 h-3" />}
                               {nc.archived ? 'Restore' : 'Archive'}
@@ -2865,11 +3029,11 @@ export default function App() {
         {/* TAB 6: GROWTH & SERVICE ANALYTICS */}
         {activeTab === 'analytics' && isFullAdmin && (
           <div className="space-y-6">
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs space-y-4">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-emerald-600" />
+                  <h3 className="font-bold text-[#0d2247] text-base flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-emerald-700" />
                     Flexible Church Data & Growth Insights
                   </h3>
                   <p className="text-xs text-slate-500">Analyze attendance trends, cohort mix, service retention, and location performance</p>
@@ -2886,7 +3050,7 @@ export default function App() {
                   <select
                     value={analyticsChartType}
                     onChange={(e) => setAnalyticsChartType(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-300 rounded-xl bg-amber-50 text-slate-900 focus:outline-none focus:border-amber-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-[#dfc078] rounded-xl bg-[#fef9ea] text-[#0d2247] focus:outline-none focus:border-[#0d2247]"
                   >
                     <option value="trend">📈 Growth Trend (Line & Area)</option>
                     <option value="cohort_stack">🧱 Stacked Cohort & Visitor Mix</option>
@@ -2900,7 +3064,7 @@ export default function App() {
                   <select
                     value={analyticsMetric}
                     onChange={(e) => setAnalyticsMetric(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50 text-slate-900"
+                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-[#f8fafd] text-[#0d2247]"
                   >
                     <option value="total">Total Attendance (All Groups)</option>
                     <option value="adults">Adults (Male + Female)</option>
@@ -2927,7 +3091,7 @@ export default function App() {
                     placeholder="Type service to filter..."
                     value={analyticsServiceFilter}
                     onChange={(e) => setAnalyticsServiceFilter(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50 text-slate-900"
+                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-[#f8fafd] text-[#0d2247]"
                   />
                 </div>
 
@@ -2939,31 +3103,31 @@ export default function App() {
                     placeholder="Type location to filter..."
                     value={analyticsLocation}
                     onChange={(e) => setAnalyticsLocation(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-slate-50 text-slate-900"
+                    className="w-full px-3 py-2 text-xs font-semibold border border-slate-300 rounded-xl bg-[#f8fafd] text-[#0d2247]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="p-3 rounded-xl bg-[#f8fafd] border border-[#dce3f0]">
                   <div className="text-[11px] text-slate-500">Matching Sessions</div>
-                  <div className="text-lg font-extrabold text-slate-900">{filteredAttendance.length}</div>
+                  <div className="text-lg font-extrabold text-[#0d2247]">{filteredAttendance.length}</div>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="p-3 rounded-xl bg-[#f8fafd] border border-[#dce3f0]">
                   <div className="text-[11px] text-slate-500">Average per Service</div>
-                  <div className="text-lg font-extrabold text-slate-900">
+                  <div className="text-lg font-extrabold text-[#0d2247]">
                     {avgSelectedMetric} {analyticsMetric === 'offeringPln' ? 'PLN' : ''}
                   </div>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="p-3 rounded-xl bg-[#f8fafd] border border-[#dce3f0]">
                   <div className="text-[11px] text-slate-500">Highest Recorded Peak</div>
-                  <div className="text-lg font-extrabold text-amber-600">
+                  <div className="text-lg font-extrabold text-[#9a6b06]">
                     {peakSelectedMetric} {analyticsMetric === 'offeringPln' ? 'PLN' : ''}
                   </div>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="p-3 rounded-xl bg-[#f8fafd] border border-[#dce3f0]">
                   <div className="text-[11px] text-slate-500">First-to-Latest Change</div>
-                  <div className={`text-lg font-extrabold ${overallGrowthPct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  <div className={`text-lg font-extrabold ${overallGrowthPct >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                     {overallGrowthPct >= 0 ? `+${overallGrowthPct}%` : `${overallGrowthPct}%`}
                   </div>
                 </div>
@@ -2971,20 +3135,20 @@ export default function App() {
             </div>
 
             {filteredAttendance.length === 0 ? (
-              <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-12 text-center">
+              <div className="bg-white border border-dashed border-[#cdd7e8] rounded-2xl p-12 text-center">
                 <BarChart3 className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                <h4 className="font-bold text-slate-800 text-sm">No attendance data matches this filter yet</h4>
+                <h4 className="font-bold text-[#0d2247] text-sm">No attendance data matches this filter yet</h4>
                 <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
                   Log services in the <strong>Attendance & Services</strong> tab (or clear your Location / Service filters above) to generate live charts.
                 </p>
               </div>
             ) : (
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="bg-white border border-[#dce3f0] rounded-2xl p-6 shadow-xs">
                 {analyticsChartType === 'trend' && (
                   <div className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <h4 className="font-bold text-slate-900 text-sm">
+                        <h4 className="font-bold text-[#0d2247] text-sm">
                           Chronological Growth Trend — {analyticsMetric === 'offeringPln' ? 'Offering (PLN)' : analyticsMetric}
                         </h4>
                         <p className="text-xs text-slate-500">
@@ -2994,9 +3158,9 @@ export default function App() {
                     </div>
 
                     {chronologicalTrendData.length === 1 ? (
-                      <div className="p-6 rounded-xl bg-amber-50/60 border border-amber-200 text-center space-y-1">
-                        <div className="text-xs text-amber-800 font-semibold">1 Session Logged ({chronologicalTrendData[0].label})</div>
-                        <div className="text-2xl font-extrabold text-slate-900">
+                      <div className="p-6 rounded-xl bg-[#fef9ea] border border-[#f2d488] text-center space-y-1">
+                        <div className="text-xs text-[#8a5d05] font-semibold">1 Session Logged ({chronologicalTrendData[0].label})</div>
+                        <div className="text-2xl font-extrabold text-[#0d2247]">
                           {chronologicalTrendData[0].value} {analyticsMetric === 'offeringPln' ? 'PLN' : 'Attendees'}
                         </div>
                         <p className="text-xs text-slate-500">Log at least 2 sessions to draw a multi-point trend line.</p>
@@ -3026,8 +3190,8 @@ export default function App() {
                             <svg width={width} height={height + 35} className="mx-auto">
                               <defs>
                                 <linearGradient id="dlbcTrendGrad" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.35" />
-                                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.02" />
+                                  <stop offset="0%" stopColor="#eab308" stopOpacity="0.35" />
+                                  <stop offset="100%" stopColor="#eab308" stopOpacity="0.02" />
                                 </linearGradient>
                               </defs>
 
@@ -3043,12 +3207,12 @@ export default function App() {
                               })}
 
                               <polygon points={areaPoints} fill="url(#dlbcTrendGrad)" />
-                              <polyline fill="none" stroke="#0f172a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={polylinePoints} />
+                              <polyline fill="none" stroke="#0d2247" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={polylinePoints} />
 
                               {coords.map((c, idx) => (
                                 <g key={idx}>
-                                  <circle cx={c.x} cy={c.y} r="5" fill="#f59e0b" stroke="#0f172a" strokeWidth="2" />
-                                  <text x={c.x} y={c.y - 10} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#0f172a">
+                                  <circle cx={c.x} cy={c.y} r="5" fill="#eab308" stroke="#0d2247" strokeWidth="2" />
+                                  <text x={c.x} y={c.y - 10} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#0d2247">
                                     {c.value}
                                   </text>
                                   <text x={c.x} y={padY + plotH + 18} textAnchor="middle" fontSize="10" fill="#475569">
@@ -3068,8 +3232,8 @@ export default function App() {
                   <div className="space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                          <Layers className="w-4 h-4 text-amber-600" />
+                        <h4 className="font-bold text-[#0d2247] text-sm flex items-center gap-2">
+                          <Layers className="w-4 h-4 text-[#b47b08]" />
                           Stacked Cohort & Visitor Mix per Session
                         </h4>
                         <p className="text-xs text-slate-500">
@@ -3078,16 +3242,16 @@ export default function App() {
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold">
                         <span className="inline-flex items-center gap-1.5">
-                          <span className="w-3 h-3 rounded-sm bg-slate-900 inline-block" /> Adults
+                          <span className="w-3 h-3 rounded-xs bg-[#0d2247] inline-block" /> Adults
                         </span>
                         <span className="inline-flex items-center gap-1.5">
-                          <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" /> Youth
+                          <span className="w-3 h-3 rounded-xs bg-emerald-500 inline-block" /> Youth
                         </span>
                         <span className="inline-flex items-center gap-1.5">
-                          <span className="w-3 h-3 rounded-sm bg-blue-500 inline-block" /> Children
+                          <span className="w-3 h-3 rounded-xs bg-blue-500 inline-block" /> Children
                         </span>
                         <span className="inline-flex items-center gap-1.5">
-                          <span className="w-3 h-3 rounded-sm bg-purple-500 inline-block" /> Visitors
+                          <span className="w-3 h-3 rounded-xs bg-purple-500 inline-block" /> Visitors
                         </span>
                       </div>
                     </div>
@@ -3100,20 +3264,20 @@ export default function App() {
                         const cPct = Math.round((item.children / safeTotal) * 100);
                         const vPct = Math.max(0, 100 - aPct - yPct - cPct);
                         return (
-                          <div key={item.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                          <div key={item.id} className="p-4 rounded-xl bg-[#f8fafd] border border-[#dce3f0] space-y-3">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <div className="text-xs font-extrabold text-slate-900">{item.date} • {item.location}</div>
+                                <div className="text-xs font-extrabold text-[#0d2247]">{item.date} • {item.location}</div>
                                 <div className="text-[11px] text-slate-500">{item.serviceType}</div>
                               </div>
-                              <span className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-950 text-xs font-extrabold">
+                              <span className="px-2 py-0.5 rounded-lg bg-[#fef6df] text-[#8a5d05] text-xs font-extrabold">
                                 {item.total} total
                               </span>
                             </div>
 
                             <div className="w-full h-4 rounded-full overflow-hidden flex bg-slate-200">
                               {item.adults > 0 && (
-                                <div className="bg-slate-900 h-full" style={{ width: `${aPct}%` }} title={`Adults: ${item.adults}`} />
+                                <div className="bg-[#0d2247] h-full" style={{ width: `${aPct}%` }} title={`Adults: ${item.adults}`} />
                               )}
                               {item.youths > 0 && (
                                 <div className="bg-emerald-500 h-full" style={{ width: `${yPct}%` }} title={`Youth: ${item.youths}`} />
@@ -3127,19 +3291,19 @@ export default function App() {
                             </div>
 
                             <div className="grid grid-cols-4 gap-1.5 text-[11px] pt-1">
-                              <div className="bg-white rounded-lg p-1.5 border border-slate-200/80 text-center">
+                              <div className="bg-white rounded-lg p-1.5 border border-[#e3e9f3] text-center">
                                 <div className="text-slate-400 text-[10px]">Adults</div>
-                                <div className="font-bold text-slate-900">{item.adults}</div>
+                                <div className="font-bold text-[#0d2247]">{item.adults}</div>
                               </div>
-                              <div className="bg-white rounded-lg p-1.5 border border-slate-200/80 text-center">
+                              <div className="bg-white rounded-lg p-1.5 border border-[#e3e9f3] text-center">
                                 <div className="text-emerald-600 text-[10px]">Youth</div>
                                 <div className="font-bold text-emerald-900">{item.youths}</div>
                               </div>
-                              <div className="bg-white rounded-lg p-1.5 border border-slate-200/80 text-center">
+                              <div className="bg-white rounded-lg p-1.5 border border-[#e3e9f3] text-center">
                                 <div className="text-blue-600 text-[10px]">Children</div>
                                 <div className="font-bold text-blue-900">{item.children}</div>
                               </div>
-                              <div className="bg-white rounded-lg p-1.5 border border-slate-200/80 text-center">
+                              <div className="bg-white rounded-lg p-1.5 border border-[#e3e9f3] text-center">
                                 <div className="text-purple-600 text-[10px]">Visitors</div>
                                 <div className="font-bold text-purple-900">{item.visitors}</div>
                               </div>
@@ -3154,7 +3318,7 @@ export default function App() {
                 {analyticsChartType === 'service_compare' && (
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-bold text-slate-900 text-sm">Service-by-Service Average Comparison</h4>
+                      <h4 className="font-bold text-[#0d2247] text-sm">Service-by-Service Average Comparison</h4>
                       <p className="text-xs text-slate-500">Compares average attendance/offering across every logged service type</p>
                     </div>
 
@@ -3164,25 +3328,25 @@ export default function App() {
                         return serviceComparisonData.map(s => {
                           const barWidth = Math.round((s.avg / maxAvg) * 100);
                           return (
-                            <div key={s.type} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                            <div key={s.type} className="p-3.5 rounded-xl bg-[#f8fafd] border border-[#dce3f0] space-y-2">
                               <div className="flex items-center justify-between text-xs">
                                 <div>
-                                  <span className="font-bold text-slate-900">{s.type}</span>
+                                  <span className="font-bold text-[#0d2247]">{s.type}</span>
                                   <span className="text-slate-400 ml-2">({s.sessions} sessions)</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="font-extrabold text-slate-900">
+                                  <span className="font-extrabold text-[#0d2247]">
                                     {s.avg} avg {analyticsMetric === 'offeringPln' ? 'PLN' : ''}
                                   </span>
                                   {s.hasSundayBaseline && !s.type.toLowerCase().includes('sunday') && (
-                                    <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800">
+                                    <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-[#fef6df] text-[#8a5d05]">
                                       {s.retentionPct}% of Sunday
                                     </span>
                                   )}
                                 </div>
                               </div>
                               <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                                <div className="h-2.5 rounded-full bg-slate-900" style={{ width: `${barWidth}%` }} />
+                                <div className="h-2.5 rounded-full bg-[#0d2247]" style={{ width: `${barWidth}%` }} />
                               </div>
                             </div>
                           );
@@ -3195,7 +3359,7 @@ export default function App() {
                 {analyticsChartType === 'location_split' && (
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-bold text-slate-900 text-sm">Location Comparison</h4>
+                      <h4 className="font-bold text-[#0d2247] text-sm">Location Comparison</h4>
                       <p className="text-xs text-slate-500">Average per service across all logged locations ({analyticsServiceFilter.trim() || 'All Services'})</p>
                     </div>
 
@@ -3207,11 +3371,11 @@ export default function App() {
                           return (
                             <div key={loc.location} className="space-y-1">
                               <div className="flex justify-between text-xs">
-                                <span className="font-bold text-slate-800">{loc.location} <span className="font-normal text-slate-400">({loc.sessions} sessions)</span></span>
-                                <span className="font-extrabold text-slate-900">{loc.avg} avg {analyticsMetric === 'offeringPln' ? 'PLN' : ''}</span>
+                                <span className="font-bold text-[#0d2247]">{loc.location} <span className="font-normal text-slate-400">({loc.sessions} sessions)</span></span>
+                                <span className="font-extrabold text-[#0d2247]">{loc.avg} avg {analyticsMetric === 'offeringPln' ? 'PLN' : ''}</span>
                               </div>
                               <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                                <div className="bg-slate-900 h-3 rounded-full" style={{ width: `${pct}%` }} />
+                                <div className="bg-[#0d2247] h-3 rounded-full" style={{ width: `${pct}%` }} />
                               </div>
                             </div>
                           );
@@ -3228,15 +3392,15 @@ export default function App() {
         {/* TAB 7: SEPARATE WORKERS & MEMBERS DIRECTORY + PARTICULARS */}
         {activeTab === 'directory' && isFullAdmin && (
           <div className="space-y-6">
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">Add Worker or Member Particulars</h3>
+                  <h3 className="font-bold text-[#0d2247] text-base">Add Worker or Member Particulars</h3>
                   <p className="text-xs text-slate-500">Capture Full Name, Phone Number, Home Address, Emergency Contact, and Location</p>
                 </div>
                 <button
                   onClick={exportDirectoryCsv}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6]"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Export CSV
@@ -3245,11 +3409,11 @@ export default function App() {
 
               <form onSubmit={handleAddPerson} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Classification</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Classification</label>
                   <select
                     value={newPersonForm.category}
                     onChange={(e) => setNewPersonForm({ ...newPersonForm, category: e.target.value })}
-                    className="w-full px-3 py-1.5 text-xs font-bold border border-slate-300 rounded-lg bg-amber-50"
+                    className="w-full px-3 py-1.5 text-xs font-bold border border-[#dfc078] rounded-lg bg-[#fef9ea]"
                   >
                     <option value="Worker">Worker</option>
                     <option value="Member">Member</option>
@@ -3257,7 +3421,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Full Name</label>
                   <input
                     type="text"
                     placeholder="Type full name..."
@@ -3269,7 +3433,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Phone Number</label>
                   <input
                     type="text"
                     placeholder="Type phone number..."
@@ -3281,7 +3445,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Location (Type Yourself)</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Location (Type Yourself)</label>
                   <input
                     type="text"
                     list="dlbc-locations-list"
@@ -3294,7 +3458,7 @@ export default function App() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Home Address</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Home Address</label>
                   <input
                     type="text"
                     placeholder="Type home address..."
@@ -3306,7 +3470,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Emergency Contact (Who to Contact)</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Emergency Contact (Who to Contact)</label>
                   <input
                     type="text"
                     placeholder="Type emergency contact name..."
@@ -3318,7 +3482,7 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Emergency Contact Number</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Emergency Contact Number</label>
                   <input
                     type="text"
                     placeholder="Type emergency phone..."
@@ -3330,7 +3494,7 @@ export default function App() {
                 </div>
 
                 <div className="sm:col-span-3">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Ministry Units / Fellowship Group (comma-separated)</label>
+                  <label className="block text-xs font-semibold text-[#0d2247] mb-1">Ministry Units / Fellowship Group (comma-separated)</label>
                   <input
                     type="text"
                     placeholder="Type units or groups..."
@@ -3341,22 +3505,22 @@ export default function App() {
                 </div>
 
                 <div className="flex items-end">
-                  <button type="submit" className="w-full px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg">
+                  <button type="submit" className="w-full px-4 py-1.5 bg-[#0d2247] hover:bg-[#163466] text-white text-xs font-semibold rounded-lg">
                     Save to {newPersonForm.category}s
                   </button>
                 </div>
               </form>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4 pb-3 border-b border-slate-200">
+            <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4 pb-3 border-b border-[#e3e9f3]">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setDirectorySubTab('Worker')}
                     className={`px-4 py-2 rounded-xl text-xs font-extrabold transition ${
                       directorySubTab === 'Worker'
-                        ? 'bg-slate-900 text-amber-300 shadow'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        ? 'bg-[#0d2247] text-[#fde047] shadow-2xs'
+                        : 'bg-[#f4f6fa] text-[#0d2247] hover:bg-[#e6ecf6]'
                     }`}
                   >
                     Workers Directory ({workersCount})
@@ -3365,8 +3529,8 @@ export default function App() {
                     onClick={() => setDirectorySubTab('Member')}
                     className={`px-4 py-2 rounded-xl text-xs font-extrabold transition ${
                       directorySubTab === 'Member'
-                        ? 'bg-slate-900 text-amber-300 shadow'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        ? 'bg-[#0d2247] text-[#fde047] shadow-2xs'
+                        : 'bg-[#f4f6fa] text-[#0d2247] hover:bg-[#e6ecf6]'
                     }`}
                   >
                     Members Directory ({membersCount})
@@ -3398,7 +3562,7 @@ export default function App() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
+                    <tr className="border-b border-[#dce3f0] text-slate-500">
                       <th className="py-2.5">Full Name</th>
                       <th className="py-2.5">Phone Number</th>
                       <th className="py-2.5">Home Address</th>
@@ -3412,7 +3576,7 @@ export default function App() {
                     {filteredDirectory.map(person => {
                       const isEditing = editingPersonId === person.id;
                       return (
-                        <tr key={person.id} className="hover:bg-slate-50 align-top">
+                        <tr key={person.id} className="hover:bg-[#f8fafd] align-top">
                           <td className="py-3 pr-2">
                             {isEditing ? (
                               <input
@@ -3423,7 +3587,7 @@ export default function App() {
                               />
                             ) : (
                               <div>
-                                <div className="font-bold text-slate-900">{person.fullName}</div>
+                                <div className="font-bold text-[#0d2247]">{person.fullName}</div>
                                 <div className="text-[11px] text-slate-500">{person.units.join(' • ')}</div>
                               </div>
                             )}
@@ -3500,8 +3664,8 @@ export default function App() {
                               onChange={(e) => handleToggleCategory(person.id, e.target.value)}
                               className={`px-2 py-1 rounded text-[11px] font-bold border ${
                                 person.category === 'Worker'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                  : 'bg-blue-50 text-blue-800 border-blue-300'
+                                  ? 'bg-[#fef9ea] text-[#8a5d05] border-[#f2d488]'
+                                  : 'bg-[#eef2f9] text-[#0d2247] border-[#cbd5e6]'
                               }`}
                             >
                               <option value="Worker">Worker</option>
@@ -3525,7 +3689,7 @@ export default function App() {
                                   setEditingPersonId(person.id);
                                   setEditPersonDraft({ ...person });
                                 }}
-                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded font-semibold"
+                                className="px-2.5 py-1 bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] rounded font-semibold"
                               >
                                 Edit
                               </button>
@@ -3543,4 +3707,5 @@ export default function App() {
       </main>
     </div>
   );
-}
+}    
+  
