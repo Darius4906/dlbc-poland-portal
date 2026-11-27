@@ -2147,7 +2147,22 @@ export default function App() {
             </div>
           </div>
         )}
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
+  {/* TAB 6: GROWTH & SERVICE ANALYTICS */}
+     {activeTab === 'analytics' && hasOversightView && (
+       <div className="space-y-6">
+         <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs space-y-4">
+           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+             <div>
+               <h3 className="font-bold text-[#0d2247] text-lg flex items-center gap-2">
+                 <TrendingUp className="w-5 h-5 text-[#9a6b06]" />
+                 Growth & Service Analytics
+               </h3>
+               <p className="text-sm text-slate-500">
+                 Explore attendance trends, monthly cohorts, service averages, and location comparisons
+               </p>
+             </div>
+           </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">1. Visualization Type</label>
                   <select value={analyticsChartType} onChange={(e) => setAnalyticsChartType(e.target.value)} className="w-full px-3 py-2 text-sm font-bold border border-[#dfc078] rounded-xl bg-[#fef9ea] text-[#0d2247]">
