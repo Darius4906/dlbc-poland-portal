@@ -3,7 +3,7 @@ import {
   Users, Calendar, BarChart3, ShieldCheck, UserPlus, ClipboardList,
   MapPin, Lock, Unlock, Plus, Trash2, Archive, RotateCcw, Search,
   Edit3, Check, X, Eye, TrendingUp, BookOpen, Bell,
-  Download, Home, Layers
+  Download, Home, Layers, History, Sliders
 } from 'lucide-react';
 
 // ============================================================================
@@ -29,6 +29,7 @@ const INITIAL_PEOPLE = [
   { id: 'm5', category: 'Member', title: 'Bro', fullName: 'Bro Gideon Balogun', phone: '+48 501 200 105', address: 'ul. Oławska 11/6', emergencyName: 'Tunde Balogun', emergencyPhone: '+48 501 200 197', location: '', accessRole: 'member', units: ['Men Fellowship'], joinDate: '2025-04-13', status: 'Active' },
   { id: 'm6', category: 'Member', title: 'Sister', fullName: 'Sister Faith Adeyemi', phone: '+48 501 200 106', address: 'ul. Solec 44/10', emergencyName: 'Sister Esther', emergencyPhone: '+48 500 100 004', location: '', accessRole: 'member', units: ['General Congregation'], joinDate: '2025-08-24', status: 'Active' }
 ];
+
 const INITIAL_WEEKLY_SERVICES = [
   { id: 'ws1', name: 'Sunday Worship Service', schedule: '09:30 AM – 12:00 PM' },
   { id: 'ws2', name: 'Midweek Koinonia / Home Caring', schedule: 'Wednesdays • 18:30 PM' },
@@ -45,9 +46,27 @@ const INITIAL_NEWCOMERS = [
   { id: 'nc5', fullName: 'Grace Boateng', phone: '+48 512 334 105', location: '', visitDate: '2026-10-04', invitedBy: 'Bro Joshua', assignedFollowUp: 'Pastor William', status: 'First-Timer', notes: 'Visited during October Sunday service', archived: false },
   { id: 'nc6', fullName: 'Samuel Adjei', phone: '+48 512 334 106', location: '', visitDate: '2026-07-12', invitedBy: 'Pastor Dare', assignedFollowUp: 'Bro David', status: 'Established', notes: 'Archived after Q3 follow-up', archived: true }
 ];
-
 const INITIAL_PLANS_AND_NOTICES = {};
 const DEFAULT_QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'];
+const INITIAL_ROSTERS = [];
+
+const INITIAL_FA_POLICY = {
+  canEdit: false,
+  restrictedModules: {
+    directory: true,
+    offerings: false,
+    rosters: false,
+    plansAndNotices: false,
+    attendance: false,
+    newcomers: false
+  }
+};
+
+const ACCESS_CODES = {
+  'DLBC-HP2026': { role: 'head_pastor', label: 'Head Pastor (Full Admin)' },
+  'DLBC-FA2026': { role: 'full_access', label: 'Full Access (Oversight)' },
+  'DLBC-UE2026': { role: 'usher_entry', label: 'Usher / Data Entry' }
+};
 
 const createEmptyYearPlan = () => ({
   theme: '',
@@ -85,23 +104,6 @@ const normalizeYearPlan = (raw) => {
     });
   }
 
-  if (Array.isArray(raw.goals) && raw.goals.length > 0) {
-    raw.goals.forEach(g => {
-      const qKey = (g.quarter || 'Q1').trim() || 'Q1';
-      if (!normalizedQuarters[qKey]) {
-        normalizedQuarters[qKey] = { team: '', activities: [] };
-      }
-      normalizedQuarters[qKey].activities.push({
-        id: g.id || 'act-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-        activity: g.title || '',
-        date: g.date || '',
-        target: g.target || '',
-        description: typeof g.description === 'string' ? g.description : '',
-        executionStatus: g.executionStatus || (g.progress >= 100 ? 'executed' : 'not_executed')
-      });
-    });
-  }
-
   return {
     theme: typeof raw.theme === 'string' ? raw.theme : '',
     bibleReference: typeof raw.bibleReference === 'string' ? raw.bibleReference : '',
@@ -109,14 +111,6 @@ const normalizeYearPlan = (raw) => {
     noticeBoard: Array.isArray(raw.noticeBoard) ? raw.noticeBoard : [],
     quarters: normalizedQuarters
   };
-};
-
-const INITIAL_ROSTERS = [];
-
-const ACCESS_CODES = {
-  'DLBC-HP2026': { role: 'head_pastor', label: 'Head Pastor (Full Admin)' },
-  'DLBC-FA2026': { role: 'full_access', label: 'Senior / Full Access' },
-  'DLBC-UE2026': { role: 'usher_entry', label: 'Usher / Data Entry' }
 };
 
 const getRecordCounts = (rec) => {
@@ -148,6 +142,25 @@ const getRecordCounts = (rec) => {
     childrenBoys, childrenGirls, visitorMale, visitorFemale,
     adults, youths, children, visitors, maleTotal, femaleTotal, total
   };
+};
+
+const getWeekNumberInMonth = (dateStr) => {
+  if (!dateStr || dateStr.length < 10) return 1;
+  const day = parseInt(dateStr.slice(8, 10), 10);
+  if (Number.isNaN(day) || day < 1) return 1;
+  return Math.min(5, Math.ceil(day / 7));
+};
+
+const summarizeFieldDiffs = (beforeObj, afterObj, fieldLabels) => {
+  const changes = [];
+  Object.entries(fieldLabels).forEach(([key, label]) => {
+    const prevVal = String(beforeObj?.[key] ?? '').trim();
+    const nextVal = String(afterObj?.[key] ?? '').trim();
+    if (prevVal !== nextVal) {
+      changes.push(`${label}: "${prevVal || '—'}" → "${nextVal || '—'}"`);
+    }
+  });
+  return changes.length > 0 ? changes.join(' | ') : 'Updated record';
 };
 
 const TREND_SERIES_OPTIONS = [
@@ -203,6 +216,25 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_ROSTERS;
   });
 
+  const [faPolicy, setFaPolicy] = useState(() => {
+    const saved = localStorage.getItem('dlbc_fa_policy_v1');
+    if (!saved) return INITIAL_FA_POLICY;
+    const parsed = JSON.parse(saved);
+    return {
+      canEdit: Boolean(parsed.canEdit),
+      restrictedModules: {
+        ...INITIAL_FA_POLICY.restrictedModules,
+        ...(parsed.restrictedModules || {})
+      }
+    };
+  });
+
+  const [activityLog, setActivityLog] = useState(() => {
+    const saved = localStorage.getItem('dlbc_activity_log_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [logActionFilter, setLogActionFilter] = useState('ALL');
+  const [logActorFilter, setLogActorFilter] = useState('ALL');
   // One-time cleanup of old hardcoded city names while preserving all entered records
   useEffect(() => {
     const cleanupKey = 'dlbc_cleared_hardcoded_locations_v1';
@@ -225,11 +257,49 @@ export default function App() {
   useEffect(() => { localStorage.setItem('dlbc_newcomers_v2', JSON.stringify(newcomers)); }, [newcomers]);
   useEffect(() => { localStorage.setItem('dlbc_plans_v5', JSON.stringify(plansByYear)); }, [plansByYear]);
   useEffect(() => { localStorage.setItem('dlbc_rosters_v2', JSON.stringify(rosters)); }, [rosters]);
+  useEffect(() => { localStorage.setItem('dlbc_fa_policy_v1', JSON.stringify(faPolicy)); }, [faPolicy]);
+  useEffect(() => { localStorage.setItem('dlbc_activity_log_v1', JSON.stringify(activityLog)); }, [activityLog]);
 
-  const isFullAdmin = accessLevel === 'head_pastor' || accessLevel === 'full_access';
-  const canEnterData = isFullAdmin || accessLevel === 'usher_entry';
+  const roleLabel =
+    accessLevel === 'head_pastor'
+      ? 'Head Pastor (HP)'
+      : accessLevel === 'full_access'
+      ? 'Full Access (FA)'
+      : accessLevel === 'usher_entry'
+      ? 'Usher / Data Entry'
+      : 'Public View';
 
-  // ONLY values actually entered across records appear in dropdown suggestions
+  const recordAuditChange = ({ action, moduleName, targetLabel, details }) => {
+    const actorName = viewerName.trim() || roleLabel;
+    const entry = {
+      id: 'log-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      timestamp: new Date().toLocaleString(),
+      actorName,
+      actorRole: accessLevel,
+      actorRoleLabel: roleLabel,
+      action,
+      moduleName,
+      targetLabel,
+      details
+    };
+    setActivityLog(prev => [entry, ...prev].slice(0, 250));
+  };
+
+  const isHeadPastor = accessLevel === 'head_pastor';
+  const isFullAccessRole = accessLevel === 'full_access';
+  const hasOversightView = isHeadPastor || isFullAccessRole;
+
+  const canEditModule = (moduleKey) => {
+    if (isHeadPastor) return true;
+    if (isFullAccessRole) return Boolean(faPolicy.canEdit) && !faPolicy.restrictedModules?.[moduleKey];
+    return false;
+  };
+
+  const canExecutePlanStatus = isHeadPastor || isFullAccessRole;
+  const canViewOfferings = isHeadPastor || (isFullAccessRole && !faPolicy.restrictedModules?.offerings);
+  const canEnterAttendance = isHeadPastor || accessLevel === 'usher_entry' || canEditModule('attendance');
+  const canEnterNewcomers = isHeadPastor || accessLevel === 'usher_entry' || canEditModule('newcomers');
+
   const knownLocations = useMemo(() => {
     const set = new Set();
     people.forEach(p => p.location && set.add(p.location.trim()));
@@ -246,10 +316,46 @@ export default function App() {
     rosters.forEach(r => r.serviceType && set.add(r.serviceType.trim()));
     return Array.from(set).filter(Boolean);
   }, [weeklyServices, attendance, rosters]);
+  const toggleFaEditPermission = () => {
+    if (!isHeadPastor) return;
+    const nextCanEdit = !faPolicy.canEdit;
+    setFaPolicy(prev => ({ ...prev, canEdit: nextCanEdit }));
+    recordAuditChange({
+      action: 'Permission Changed',
+      moduleName: 'FA Access Control',
+      targetLabel: 'Full Access (FA) Edit Rights',
+      details: nextCanEdit
+        ? 'HP GRANTED edit permission to FA (subject to module restrictions)'
+        : 'HP REVOKED edit permission from FA (FA returned to View + Execute mode)'
+    });
+  };
+
+  const toggleFaModuleRestriction = (moduleKey, label) => {
+    if (!isHeadPastor) return;
+    const currentRestricted = Boolean(faPolicy.restrictedModules?.[moduleKey]);
+    const nextRestricted = !currentRestricted;
+    setFaPolicy(prev => ({
+      ...prev,
+      restrictedModules: {
+        ...prev.restrictedModules,
+        [moduleKey]: nextRestricted
+      }
+    }));
+    recordAuditChange({
+      action: 'Permission Changed',
+      moduleName: 'FA Access Control',
+      targetLabel: `FA Restriction — ${label}`,
+      details: nextRestricted
+        ? `HP RESTRICTED FA edit/sensitive access on ${label}`
+        : `HP UNRESTRICTED FA access on ${label}`
+    });
+  };
+
   const [isEditingServices, setIsEditingServices] = useState(false);
   const [servicesDraft, setServicesDraft] = useState([]);
 
   const startEditingServices = () => {
+    if (!canEditModule('plansAndNotices')) return;
     setServicesDraft(weeklyServices.map(s => ({ ...s })));
     setIsEditingServices(true);
   };
@@ -268,6 +374,7 @@ export default function App() {
 
   const handleSaveServices = (e) => {
     e.preventDefault();
+    if (!canEditModule('plansAndNotices')) return;
     const cleaned = servicesDraft
       .filter(s => s.name.trim() || s.schedule.trim())
       .map(s => ({
@@ -277,6 +384,12 @@ export default function App() {
       }));
     setWeeklyServices(cleaned);
     setIsEditingServices(false);
+    recordAuditChange({
+      action: 'Edited',
+      moduleName: 'Weekly Service Days',
+      targetLabel: 'Weekly Service Schedule',
+      details: `Updated weekly service list (${cleaned.length} service day(s) configured)`
+    });
   };
 
   const handleNameChange = (val) => {
@@ -305,7 +418,6 @@ export default function App() {
     setIsEditingServices(false);
     if (activeTab === 'analytics' || activeTab === 'directory') setActiveTab('overview');
   };
-
   const [analyticsLocation, setAnalyticsLocation] = useState('');
   const [analyticsChartType, setAnalyticsChartType] = useState('trend');
   const [analyticsServiceFilter, setAnalyticsServiceFilter] = useState('');
@@ -337,7 +449,7 @@ export default function App() {
     if (metricKey === 'visitorFemale') return c.visitorFemale;
     if (metricKey === 'maleTotal') return c.maleTotal;
     if (metricKey === 'femaleTotal') return c.femaleTotal;
-    if (metricKey === 'offeringPln') return Number(rec.offeringPln) || 0;
+    if (metricKey === 'offeringPln') return canViewOfferings ? (Number(rec.offeringPln) || 0) : 0;
     return c.total;
   };
 
@@ -366,9 +478,8 @@ export default function App() {
       });
       return row;
     });
-  }, [filteredAttendance, analyticsMetric]);
-
-  const cohortMonths = useMemo(() => {
+  }, [filteredAttendance, analyticsMetric, canViewOfferings]);
+ const cohortMonths = useMemo(() => {
     const set = new Set(
       filteredAttendance.map(a => (a.date && a.date.length >= 7 ? a.date.slice(0, 7) : '')).filter(Boolean)
     );
@@ -406,18 +517,13 @@ export default function App() {
     const locQ = analyticsLocation.trim().toLowerCase();
     const locFiltered = !locQ ? attendance : attendance.filter(a => (a.location || '').toLowerCase().includes(locQ));
     const uniqueTypes = Array.from(new Set(locFiltered.map(a => a.serviceType).filter(Boolean)));
-    const sundayRecords = locFiltered.filter(a => (a.serviceType || '').toLowerCase().includes('sunday'));
-    const sundayAvg = sundayRecords.length
-      ? sundayRecords.reduce((s, r) => s + getMetricValue(r, analyticsMetric), 0) / sundayRecords.length : 0;
-
     return uniqueTypes.map(type => {
       const recs = locFiltered.filter(a => a.serviceType === type);
       const totalSum = recs.reduce((s, r) => s + getMetricValue(r, analyticsMetric), 0);
       const avg = recs.length ? +(totalSum / recs.length).toFixed(1) : 0;
-      const retentionPct = sundayAvg > 0 ? Math.round((avg / sundayAvg) * 100) : 100;
-      return { type, avg, sessions: recs.length, retentionPct, hasSundayBaseline: sundayAvg > 0 };
+      return { type, avg, sessions: recs.length };
     });
-  }, [attendance, analyticsLocation, analyticsMetric]);
+  }, [attendance, analyticsLocation, analyticsMetric, canViewOfferings]);
 
   const locationBreakdownData = useMemo(() => {
     const svcQ = analyticsServiceFilter.trim().toLowerCase();
@@ -428,7 +534,7 @@ export default function App() {
       const sum = recs.reduce((s, r) => s + getMetricValue(r, analyticsMetric), 0);
       return { location: loc, sessions: recs.length, avg: recs.length ? +(sum / recs.length).toFixed(1) : 0, total: sum };
     });
-  }, [attendance, analyticsServiceFilter, analyticsMetric]);
+  }, [attendance, analyticsServiceFilter, analyticsMetric, canViewOfferings]);
 
   const sundayAll = attendance.filter(a => (a.serviceType || '').toLowerCase().includes('sunday')).sort((a, b) => a.date.localeCompare(b.date));
   const latestSundayAvg = sundayAll.length
@@ -463,13 +569,45 @@ export default function App() {
 
   const handleAddNewcomer = (e) => {
     e.preventDefault();
-    if (!ncForm.fullName.trim()) return;
-    setNewcomers([{ id: 'nc-' + Date.now(), ...ncForm, location: ncForm.location.trim(), status: 'First-Timer', archived: false }, ...newcomers]);
+    if (!canEnterNewcomers || !ncForm.fullName.trim()) return;
+    const created = { id: 'nc-' + Date.now(), ...ncForm, location: ncForm.location.trim(), status: 'First-Timer', archived: false };
+    setNewcomers([created, ...newcomers]);
+    recordAuditChange({
+      action: 'Created',
+      moduleName: 'Newcomers',
+      targetLabel: created.fullName,
+      details: `Added newcomer (${created.visitDate}${created.location ? ` • ${created.location}` : ''}, Follow-up: ${created.assignedFollowUp || '—'})`
+    });
     setNcForm({ fullName: '', phone: '', location: '', visitDate: '2026-11-27', invitedBy: '', assignedFollowUp: 'Sister Esther', notes: '' });
   };
-  const toggleArchiveNewcomer = (id) => setNewcomers(newcomers.map(n => n.id === id ? { ...n, archived: !n.archived } : n));
-  const deleteNewcomer = (id) => setNewcomers(newcomers.filter(n => n.id !== id));
 
+  const toggleArchiveNewcomer = (id) => {
+    if (!canEditModule('newcomers')) return;
+    const target = newcomers.find(n => n.id === id);
+    if (!target) return;
+    const nextArchived = !target.archived;
+    setNewcomers(newcomers.map(n => n.id === id ? { ...n, archived: nextArchived } : n));
+    recordAuditChange({
+      action: nextArchived ? 'Archived' : 'Restored',
+      moduleName: 'Newcomers',
+      targetLabel: target.fullName,
+      details: `${nextArchived ? 'Archived' : 'Restored'} newcomer record (${target.visitDate})`
+    });
+  };
+
+  const deleteNewcomer = (id) => {
+    if (!canEditModule('newcomers')) return;
+    const target = newcomers.find(n => n.id === id);
+    setNewcomers(newcomers.filter(n => n.id !== id));
+    if (target) {
+      recordAuditChange({
+        action: 'Deleted',
+        moduleName: 'Newcomers',
+        targetLabel: target.fullName,
+        details: `Deleted newcomer record visited ${target.visitDate}`
+      });
+    }
+  };
   const [directorySubTab, setDirectorySubTab] = useState('Worker');
   const [dirSearch, setDirSearch] = useState('');
   const [dirLocationFilter, setDirLocationFilter] = useState('');
@@ -496,7 +634,7 @@ export default function App() {
 
   const handleAddPerson = (e) => {
     e.preventDefault();
-    if (!newPersonForm.fullName.trim()) return;
+    if (!canEditModule('directory') || !newPersonForm.fullName.trim()) return;
     const units = newPersonForm.unitsText
       ? newPersonForm.unitsText.split(',').map(u => u.trim()).filter(Boolean)
       : [newPersonForm.category === 'Worker' ? 'General Service' : 'General Congregation'];
@@ -510,16 +648,61 @@ export default function App() {
     };
     setPeople([created, ...people]);
     setDirectorySubTab(created.category);
+    recordAuditChange({
+      action: 'Created',
+      moduleName: 'Directory',
+      targetLabel: `${created.fullName} (${created.category})`,
+      details: `Added ${created.category.toLowerCase()} • Phone: ${created.phone || '—'} • Location: ${created.location || '—'}`
+    });
     setNewPersonForm({ category: created.category, title: 'Bro', fullName: '', phone: '', address: '', emergencyName: '', emergencyPhone: '', location: '', accessRole: 'member', unitsText: '' });
   };
-  const handleToggleCategory = (personId, newCat) => setPeople(people.map(p => p.id === personId ? { ...p, category: newCat, accessRole: newCat === 'Member' ? 'member' : p.accessRole } : p));
+
+  const handleToggleCategory = (personId, newCat) => {
+    if (!canEditModule('directory')) return;
+    const prevPerson = people.find(p => p.id === personId);
+    setPeople(people.map(p => p.id === personId ? { ...p, category: newCat, accessRole: newCat === 'Member' ? 'member' : p.accessRole } : p));
+    if (prevPerson && prevPerson.category !== newCat) {
+      recordAuditChange({
+        action: 'Edited',
+        moduleName: 'Directory',
+        targetLabel: prevPerson.fullName,
+        details: `Classification: "${prevPerson.category}" → "${newCat}"`
+      });
+    }
+  };
+
   const saveEditedPerson = () => {
-    if (!editPersonDraft) return;
+    if (!canEditModule('directory') || !editPersonDraft) return;
+    const prevPerson = people.find(p => p.id === editPersonDraft.id);
     setPeople(people.map(p => p.id === editPersonDraft.id ? editPersonDraft : p));
+    recordAuditChange({
+      action: 'Edited',
+      moduleName: 'Directory',
+      targetLabel: editPersonDraft.fullName,
+      details: summarizeFieldDiffs(prevPerson, editPersonDraft, {
+        fullName: 'Name', phone: 'Phone', address: 'Address',
+        emergencyName: 'Emergency Contact', emergencyPhone: 'Emergency Phone', location: 'Location'
+      })
+    });
     setEditingPersonId(null);
     setEditPersonDraft(null);
   };
 
+  const handleDeletePerson = (person) => {
+    if (!canEditModule('directory')) return;
+    if (!window.confirm(`Remove ${person.fullName} from the ${person.category}s Directory?`)) return;
+    setPeople(prev => prev.filter(p => p.id !== person.id));
+    recordAuditChange({
+      action: 'Deleted',
+      moduleName: 'Directory',
+      targetLabel: `${person.fullName} (${person.category})`,
+      details: `Removed from ${person.category}s Directory (${person.phone || 'no phone'})`
+    });
+    if (editingPersonId === person.id) {
+      setEditingPersonId(null);
+      setEditPersonDraft(null);
+    }
+  };
   const availableYears = useMemo(() => Object.keys(plansByYear).sort(), [plansByYear]);
   const [selectedPlanYear, setSelectedPlanYear] = useState(() => {
     const saved = localStorage.getItem('dlbc_plans_v5') || localStorage.getItem('dlbc_plans_v4') || localStorage.getItem('dlbc_plans_v3');
@@ -533,6 +716,8 @@ export default function App() {
   const [selectedQuarterTab, setSelectedQuarterTab] = useState('Q1');
   const [customQuarterInput, setCustomQuarterInput] = useState('');
   const [newNoticeForm, setNewNoticeForm] = useState({ title: '', date: '', audience: '', priority: 'Normal', body: '' });
+  const [editingNoticeId, setEditingNoticeId] = useState(null);
+  const [editNoticeDraft, setEditNoticeDraft] = useState(null);
   const [newActivityForm, setNewActivityForm] = useState({ activity: '', date: '', target: '', description: '', executionStatus: 'not_executed' });
   const [editingActivityId, setEditingActivityId] = useState(null);
   const [editActivityDraft, setEditActivityDraft] = useState(null);
@@ -545,71 +730,134 @@ export default function App() {
 
   const handleCreateYear = (e) => {
     e.preventDefault();
+    if (!canEditModule('plansAndNotices')) return;
     const yr = newYearInput.trim();
     if (!yr) return;
     if (!plansByYear[yr]) setPlansByYear({ ...plansByYear, [yr]: createEmptyYearPlan() });
-    setSelectedPlanYear(yr); setSelectedQuarterTab('Q1'); setEditingActivityId(null); setEditActivityDraft(null); setNewYearInput('');
+    setSelectedPlanYear(yr); setSelectedQuarterTab('Q1'); setEditingActivityId(null); setEditActivityDraft(null); setEditingNoticeId(null); setEditNoticeDraft(null); setNewYearInput('');
+    recordAuditChange({ action: 'Created', moduleName: 'Strategic Plan', targetLabel: `Year ${yr}`, details: `Created ${yr} strategic plan & notice board` });
   };
+
   const handleDeleteYear = (yrToDelete) => {
-    if (!yrToDelete || !plansByYear[yrToDelete]) return;
+    if (!canEditModule('plansAndNotices') || !yrToDelete || !plansByYear[yrToDelete]) return;
     if (!window.confirm(`Delete ${yrToDelete} completely, including its theme, notice board posts, and all quarter plans?`)) return;
     const updated = { ...plansByYear }; delete updated[yrToDelete]; setPlansByYear(updated);
     const remaining = Object.keys(updated).sort();
-    setSelectedPlanYear(remaining.length > 0 ? remaining[remaining.length - 1] : ''); setEditingActivityId(null); setEditActivityDraft(null);
+    setSelectedPlanYear(remaining.length > 0 ? remaining[remaining.length - 1] : ''); setEditingActivityId(null); setEditActivityDraft(null); setEditingNoticeId(null); setEditNoticeDraft(null);
+    recordAuditChange({ action: 'Deleted', moduleName: 'Strategic Plan', targetLabel: `Year ${yrToDelete}`, details: `Deleted full ${yrToDelete} plan & notices` });
   };
+
   const handleUpdateYearField = (field, newVal) => {
-    if (!activePlanYear || !currentYearData) return;
+    if (!canEditModule('plansAndNotices') || !activePlanYear || !currentYearData) return;
+    const prevVal = currentYearData[field] || '';
+    if (String(prevVal).trim() !== String(newVal).trim()) {
+      recordAuditChange({ action: 'Edited', moduleName: 'Strategic Plan', targetLabel: `${activePlanYear} Theme (${field})`, details: `"${prevVal || '—'}" → "${newVal || '—'}"` });
+    }
     setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, [field]: newVal } });
   };
+
   const handleAddQuarterTab = (e) => {
     e.preventDefault();
+    if (!canEditModule('plansAndNotices')) return;
     const qLabel = customQuarterInput.trim();
     if (!qLabel || !activePlanYear || !currentYearData) return;
     setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, quarters: { ...currentYearData.quarters, [qLabel]: currentYearData.quarters[qLabel] || { team: '', activities: [] } } } });
     setSelectedQuarterTab(qLabel); setEditingActivityId(null); setEditActivityDraft(null); setCustomQuarterInput('');
+    recordAuditChange({ action: 'Created', moduleName: 'Strategic Plan', targetLabel: `${activePlanYear} • ${qLabel}`, details: `Added quarter tab ${qLabel}` });
+  };
+
+  const handleAddNotice = (e) => {
+    e.preventDefault();
+    if (!canEditModule('plansAndNotices') || !activePlanYear || !currentYearData || !newNoticeForm.title.trim()) return;
+    const createdNotice = { id: 'not-' + Date.now(), ...newNoticeForm, date: newNoticeForm.date || new Date().toISOString().slice(0, 10) };
+    setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, noticeBoard: [createdNotice, ...currentYearData.noticeBoard] } });
+    recordAuditChange({ action: 'Created', moduleName: 'Notice Board', targetLabel: createdNotice.title, details: `Priority: ${createdNotice.priority} • Date: ${createdNotice.date}` });
+    setNewNoticeForm({ title: '', date: '', audience: '', priority: 'Normal', body: '' });
+  };
+
+  const handleStartEditNotice = (notice) => {
+    if (!canEditModule('plansAndNotices')) return;
+    setEditingNoticeId(notice.id); setEditNoticeDraft({ ...notice });
+  };
+
+  const handleSaveEditedNotice = () => {
+    if (!canEditModule('plansAndNotices') || !editNoticeDraft || !activePlanYear || !currentYearData) return;
+    const prevNotice = currentYearData.noticeBoard.find(n => n.id === editNoticeDraft.id);
+    const updatedNotice = { ...editNoticeDraft, title: (editNoticeDraft.title || '').trim() || editNoticeDraft.title, audience: (editNoticeDraft.audience || '').trim() };
+    setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, noticeBoard: currentYearData.noticeBoard.map(n => (n.id === editNoticeDraft.id ? updatedNotice : n)) } });
+    recordAuditChange({ action: 'Edited', moduleName: 'Notice Board', targetLabel: updatedNotice.title, details: summarizeFieldDiffs(prevNotice, updatedNotice, { title: 'Title', date: 'Date', audience: 'Audience', priority: 'Priority', body: 'Details' }) });
+    setEditingNoticeId(null); setEditNoticeDraft(null);
+  };
+
+  const handleDeleteNotice = (noticeId) => {
+    if (!canEditModule('plansAndNotices') || !activePlanYear || !currentYearData) return;
+    const targetNotice = currentYearData.noticeBoard.find(n => n.id === noticeId);
+    setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, noticeBoard: currentYearData.noticeBoard.filter(n => n.id !== noticeId) } });
+    if (targetNotice) {
+      recordAuditChange({ action: 'Deleted', moduleName: 'Notice Board', targetLabel: targetNotice.title, details: `Deleted notice dated ${targetNotice.date}` });
+    }
+    if (editingNoticeId === noticeId) { setEditingNoticeId(null); setEditNoticeDraft(null); }
   };
   const handleUpdateQuarterTeam = (newTeam) => {
-    if (!activePlanYear || !currentYearData) return;
+    if (!canEditModule('plansAndNotices') || !activePlanYear || !currentYearData) return;
     const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
+    if ((existingQ.team || '').trim() !== newTeam.trim()) {
+      recordAuditChange({ action: 'Edited', moduleName: 'Strategic Plan', targetLabel: `${activePlanYear} • ${activeQuarterKey} Team`, details: `"${existingQ.team || '—'}" → "${newTeam || '—'}"` });
+    }
     setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, quarters: { ...currentYearData.quarters, [activeQuarterKey]: { ...existingQ, team: newTeam } } } });
   };
+
   const handleAddQuarterActivity = (e) => {
     e.preventDefault();
-    if (!activePlanYear || !currentYearData || !newActivityForm.activity.trim()) return;
+    if (!canEditModule('plansAndNotices') || !activePlanYear || !currentYearData || !newActivityForm.activity.trim()) return;
     const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
     const createdActivity = { id: 'act-' + Date.now(), activity: newActivityForm.activity.trim(), date: newActivityForm.date.trim(), target: newActivityForm.target.trim(), description: newActivityForm.description.trim(), executionStatus: newActivityForm.executionStatus };
     setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, quarters: { ...currentYearData.quarters, [activeQuarterKey]: { ...existingQ, activities: [...existingQ.activities, createdActivity] } } } });
+    recordAuditChange({ action: 'Created', moduleName: 'Strategic Plan', targetLabel: `${activePlanYear} • ${activeQuarterKey}: ${createdActivity.activity}`, details: `Date: ${createdActivity.date || '—'} | Target: ${createdActivity.target || '—'}` });
     setNewActivityForm({ activity: '', date: '', target: '', description: '', executionStatus: 'not_executed' });
   };
+
+  // FA can execute/toggle status ("Executed" / "Not Executed") even when editing is locked
   const handleSetActivityStatus = (activityId, statusValue) => {
-    if (!activePlanYear || !currentYearData) return;
+    if (!canExecutePlanStatus || !activePlanYear || !currentYearData) return;
     const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
+    const targetAct = existingQ.activities.find(item => item.id === activityId);
     setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, quarters: { ...currentYearData.quarters, [activeQuarterKey]: { ...existingQ, activities: existingQ.activities.map(item => item.id === activityId ? { ...item, executionStatus: statusValue } : item) } } } });
-  };
-  const handleStartEditActivity = (item) => { setEditingActivityId(item.id); setEditActivityDraft({ ...item }); };
-  const handleSaveEditedActivity = () => {
-    if (!editActivityDraft || !activePlanYear || !currentYearData) return;
-    const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
-    setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, quarters: { ...currentYearData.quarters, [activeQuarterKey]: { ...existingQ, activities: existingQ.activities.map(item => item.id === editActivityDraft.id ? { ...item, activity: editActivityDraft.activity.trim() || item.activity, date: editActivityDraft.date.trim(), target: editActivityDraft.target.trim(), description: editActivityDraft.description, executionStatus: editActivityDraft.executionStatus } : item) } } } });
-    setEditingActivityId(null); setEditActivityDraft(null);
-  };
-  const handleDeleteQuarterActivity = (activityId) => {
-    if (!activePlanYear || !currentYearData) return;
-    const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
-    setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, quarters: { ...currentYearData.quarters, [activeQuarterKey]: { ...existingQ, activities: existingQ.activities.filter(item => item.id !== activityId) } } } });
-    if (editingActivityId === activityId) { setEditingActivityId(null); setEditActivityDraft(null); }
-  };
-  const handleAddNotice = (e) => {
-    e.preventDefault();
-    if (!activePlanYear || !currentYearData || !newNoticeForm.title.trim()) return;
-    setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, noticeBoard: [{ id: 'not-' + Date.now(), ...newNoticeForm, date: newNoticeForm.date || new Date().toISOString().slice(0, 10) }, ...currentYearData.noticeBoard] } });
-    setNewNoticeForm({ title: '', date: '', audience: '', priority: 'Normal', body: '' });
-  };
-  const handleDeleteNotice = (noticeId) => {
-    if (!activePlanYear || !currentYearData) return;
-    setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, noticeBoard: currentYearData.noticeBoard.filter(n => n.id !== noticeId) } });
+    if (targetAct && targetAct.executionStatus !== statusValue) {
+      recordAuditChange({
+        action: statusValue === 'executed' ? 'Marked Executed' : 'Marked Not Executed',
+        moduleName: 'Strategic Plan',
+        targetLabel: `${activePlanYear} • ${activeQuarterKey}: ${targetAct.activity}`,
+        details: `Execution status: "${targetAct.executionStatus}" → "${statusValue}"`
+      });
+    }
   };
 
+  const handleStartEditActivity = (item) => {
+    if (!canEditModule('plansAndNotices')) return;
+    setEditingActivityId(item.id); setEditActivityDraft({ ...item });
+  };
+
+  const handleSaveEditedActivity = () => {
+    if (!canEditModule('plansAndNotices') || !editActivityDraft || !activePlanYear || !currentYearData) return;
+    const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
+    const prevAct = existingQ.activities.find(item => item.id === editActivityDraft.id);
+    const updatedItem = { ...editActivityDraft, activity: editActivityDraft.activity.trim() || editActivityDraft.activity, date: editActivityDraft.date.trim(), target: editActivityDraft.target.trim() };
+    setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, quarters: { ...currentYearData.quarters, [activeQuarterKey]: { ...existingQ, activities: existingQ.activities.map(item => item.id === editActivityDraft.id ? updatedItem : item) } } } });
+    recordAuditChange({ action: 'Edited', moduleName: 'Strategic Plan', targetLabel: `${activePlanYear} • ${activeQuarterKey}: ${updatedItem.activity}`, details: summarizeFieldDiffs(prevAct, updatedItem, { activity: 'Activity', date: 'Date', target: 'Target', description: 'Description' }) });
+    setEditingActivityId(null); setEditActivityDraft(null);
+  };
+
+  const handleDeleteQuarterActivity = (activityId) => {
+    if (!canEditModule('plansAndNotices') || !activePlanYear || !currentYearData) return;
+    const existingQ = currentYearData.quarters[activeQuarterKey] || { team: '', activities: [] };
+    const targetAct = existingQ.activities.find(item => item.id === activityId);
+    setPlansByYear({ ...plansByYear, [activePlanYear]: { ...currentYearData, quarters: { ...currentYearData.quarters, [activeQuarterKey]: { ...existingQ, activities: existingQ.activities.filter(item => item.id !== activityId) } } } });
+    if (targetAct) {
+      recordAuditChange({ action: 'Deleted', moduleName: 'Strategic Plan', targetLabel: `${activePlanYear} • ${activeQuarterKey}: ${targetAct.activity}`, details: 'Removed activity from quarter plan' });
+    }
+    if (editingActivityId === activityId) { setEditingActivityId(null); setEditActivityDraft(null); }
+  };
   const [attForm, setAttForm] = useState({
     date: new Date().toISOString().slice(0, 10), location: '', serviceType: '',
     adultMale: '', adultFemale: '', youthBoys: '', youthGirls: '',
@@ -619,6 +867,8 @@ export default function App() {
   const [attBrowseMode, setAttBrowseMode] = useState('date');
   const [selectedAttDate, setSelectedAttDate] = useState('');
   const [selectedAttMonth, setSelectedAttMonth] = useState('');
+  const [editingAttId, setEditingAttId] = useState(null);
+  const [editAttDraft, setEditAttDraft] = useState(null);
 
   const availableAttDates = useMemo(() => Array.from(new Set(attendance.map(a => a.date).filter(Boolean))).sort((a, b) => b.localeCompare(a)), [attendance]);
   const availableAttMonths = useMemo(() => Array.from(new Set(attendance.map(a => (a.date && a.date.length >= 7 ? a.date.slice(0, 7) : '')).filter(Boolean))).sort((a, b) => b.localeCompare(a)), [attendance]);
@@ -641,61 +891,193 @@ export default function App() {
 
   const handleAddAttendance = (e) => {
     e.preventDefault();
+    if (!canEnterAttendance) return;
     const recorder = attForm.recordedBy.trim() || viewerName.trim() || 'Authorized Worker';
     const adultMale = Number(attForm.adultMale) || 0; const adultFemale = Number(attForm.adultFemale) || 0;
     const youthBoys = Number(attForm.youthBoys) || 0; const youthGirls = Number(attForm.youthGirls) || 0;
     const childrenBoys = Number(attForm.childrenBoys) || 0; const childrenGirls = Number(attForm.childrenGirls) || 0;
     const visitorMale = Number(attForm.visitorMale) || 0; const visitorFemale = Number(attForm.visitorFemale) || 0;
+    const totalCount = adultMale + adultFemale + youthBoys + youthGirls + childrenBoys + childrenGirls + visitorMale + visitorFemale;
     const entry = {
       id: 'att-' + Date.now(), date: attForm.date, location: attForm.location.trim(), serviceType: attForm.serviceType.trim(), period: getQuarterString(attForm.date),
       adultMale, adultFemale, youthBoys, youthGirls, childrenBoys, childrenGirls, visitorMale, visitorFemale,
       adults: adultMale + adultFemale, youths: youthBoys + youthGirls, children: childrenBoys + childrenGirls, visitors: visitorMale + visitorFemale,
-      offeringPln: Number(attForm.offeringPln) || 0, recordedBy: recorder
+      offeringPln: canViewOfferings ? (Number(attForm.offeringPln) || 0) : 0, recordedBy: recorder
     };
     setAttendance([entry, ...attendance]);
+    recordAuditChange({ action: 'Created', moduleName: 'Attendance', targetLabel: `${entry.date} • ${entry.serviceType}`, details: `Location: ${entry.location || '—'} | Total: ${totalCount}${canViewOfferings && entry.offeringPln ? ` | Offering: ${entry.offeringPln} PLN` : ''}` });
     setSelectedAttDate(attForm.date);
     if (attForm.date && attForm.date.length >= 7) { setSelectedAttMonth(attForm.date.slice(0, 7)); setSelectedCohortMonth(attForm.date.slice(0, 7)); }
     setAttForm({ ...attForm, adultMale: '', adultFemale: '', youthBoys: '', youthGirls: '', childrenBoys: '', childrenGirls: '', visitorMale: '', visitorFemale: '', offeringPln: '', recordedBy: recorder });
   };
-  const handleDeleteAttendance = (id) => setAttendance(attendance.filter(a => a.id !== id));
 
+  const handleStartEditAttendance = (rec) => {
+    if (!canEditModule('attendance')) return;
+    setEditingAttId(rec.id);
+    setEditAttDraft({
+      id: rec.id, date: rec.date || '', location: rec.location || '', serviceType: rec.serviceType || '',
+      adultMale: rec.adultMale ?? '', adultFemale: rec.adultFemale ?? '',
+      youthBoys: rec.youthBoys ?? '', youthGirls: rec.youthGirls ?? '',
+      childrenBoys: rec.childrenBoys ?? '', childrenGirls: rec.childrenGirls ?? '',
+      visitorMale: rec.visitorMale ?? '', visitorFemale: rec.visitorFemale ?? '',
+      offeringPln: rec.offeringPln ?? '', recordedBy: rec.recordedBy || ''
+    });
+  };
+
+  const handleSaveEditedAttendance = () => {
+    if (!canEditModule('attendance') || !editAttDraft) return;
+    const prevRec = attendance.find(item => item.id === editAttDraft.id);
+    const adultMale = Number(editAttDraft.adultMale) || 0; const adultFemale = Number(editAttDraft.adultFemale) || 0;
+    const youthBoys = Number(editAttDraft.youthBoys) || 0; const youthGirls = Number(editAttDraft.youthGirls) || 0;
+    const childrenBoys = Number(editAttDraft.childrenBoys) || 0; const childrenGirls = Number(editAttDraft.childrenGirls) || 0;
+    const visitorMale = Number(editAttDraft.visitorMale) || 0; const visitorFemale = Number(editAttDraft.visitorFemale) || 0;
+    const updatedRec = {
+      ...prevRec, date: editAttDraft.date || prevRec.date, period: getQuarterString(editAttDraft.date || prevRec.date),
+      location: (editAttDraft.location || '').trim(), serviceType: (editAttDraft.serviceType || '').trim(),
+      adultMale, adultFemale, youthBoys, youthGirls, childrenBoys, childrenGirls, visitorMale, visitorFemale,
+      adults: adultMale + adultFemale, youths: youthBoys + youthGirls, children: childrenBoys + childrenGirls, visitors: visitorMale + visitorFemale,
+      offeringPln: canViewOfferings ? (Number(editAttDraft.offeringPln) || 0) : (prevRec.offeringPln || 0),
+      recordedBy: (editAttDraft.recordedBy || '').trim() || prevRec.recordedBy
+    };
+    setAttendance(prev => prev.map(item => (item.id === editAttDraft.id ? updatedRec : item)));
+    recordAuditChange({
+      action: 'Edited',
+      moduleName: 'Attendance',
+      targetLabel: `${updatedRec.date} • ${updatedRec.serviceType}`,
+      details: summarizeFieldDiffs(prevRec, updatedRec, {
+        date: 'Date', location: 'Location', serviceType: 'Service',
+        adultMale: 'Adult M', adultFemale: 'Adult F', youthBoys: 'Youth B', youthGirls: 'Youth G',
+        childrenBoys: 'Child B', childrenGirls: 'Child G', visitorMale: 'Visitor M', visitorFemale: 'Visitor F',
+        offeringPln: 'Offering PLN'
+      })
+    });
+    setEditingAttId(null); setEditAttDraft(null);
+  };
+
+  const handleDeleteAttendance = (id) => {
+    if (!canEditModule('attendance')) return;
+    const target = attendance.find(a => a.id === id);
+    setAttendance(attendance.filter(a => a.id !== id));
+    if (target) {
+      recordAuditChange({ action: 'Deleted', moduleName: 'Attendance', targetLabel: `${target.date} • ${target.serviceType}`, details: `Deleted attendance record (${target.location || '—'}, Total: ${getRecordCounts(target).total})` });
+    }
+    if (editingAttId === id) { setEditingAttId(null); setEditAttDraft(null); }
+  };
   const [rosterLocationFilter, setRosterLocationFilter] = useState('');
   const [rosterServiceFilter, setRosterServiceFilter] = useState('');
+  const [selectedRosterProgram, setSelectedRosterProgram] = useState('');
+  const [selectedRosterMonth, setSelectedRosterMonth] = useState('');
+  const [selectedRosterWeek, setSelectedRosterWeek] = useState('ALL');
   const [showRosterBuilder, setShowRosterBuilder] = useState(false);
   const [editingRosterId, setEditingRosterId] = useState(null);
   const [rosterDraft, setRosterDraft] = useState({ date: new Date().toISOString().slice(0, 10), location: '', serviceType: '', assignments: [] });
 
   const openNewRosterBuilder = () => {
+    if (!canEditModule('rosters')) return;
     setEditingRosterId(null);
-    setRosterDraft({ date: new Date().toISOString().slice(0, 10), location: '', serviceType: '', assignments: [{ time: '09:30', slot: 'Opening Prayer & Moderation', worker: '' }, { time: '10:00', slot: 'Main Ministration / Message', worker: '' }] });
+    setRosterDraft({ date: new Date().toISOString().slice(0, 10), location: rosterLocationFilter || '', serviceType: rosterServiceFilter || '', assignments: [{ time: '09:30', slot: 'Opening Prayer & Moderation', worker: '' }, { time: '10:00', slot: 'Main Ministration / Message', worker: '' }] });
     setShowRosterBuilder(true);
   };
+
   const openEditRosterBuilder = (roster) => {
+    if (!canEditModule('rosters')) return;
     setEditingRosterId(roster.id);
     setRosterDraft({ date: roster.date, location: roster.location, serviceType: roster.serviceType, assignments: roster.assignments.map(a => ({ ...a })) });
     setShowRosterBuilder(true);
   };
+
   const handleDraftSlotChange = (index, field, value) => setRosterDraft(prev => ({ ...prev, assignments: prev.assignments.map((item, idx) => (idx === index ? { ...item, [field]: value } : item)) }));
   const handleAddDraftSlot = () => setRosterDraft(prev => ({ ...prev, assignments: [...prev.assignments, { time: '', slot: '', worker: '' }] }));
   const handleRemoveDraftSlot = (index) => setRosterDraft(prev => ({ ...prev, assignments: prev.assignments.filter((_, idx) => idx !== index) }));
+
   const handleSaveRoster = (e) => {
     e.preventDefault();
+    if (!canEditModule('rosters')) return;
     const finalServiceTitle = rosterDraft.serviceType.trim() || 'Church Service';
     const finalLocation = rosterDraft.location.trim() || 'General';
     const cleanAssignments = rosterDraft.assignments.filter(a => a.slot.trim() || a.worker.trim()).map(a => ({ time: a.time.trim() || '—', slot: a.slot.trim() || 'Duty Assignment', worker: a.worker.trim() || 'Unassigned' }));
     if (editingRosterId) {
       setRosters(rosters.map(r => r.id === editingRosterId ? { ...r, date: rosterDraft.date, location: finalLocation, serviceType: finalServiceTitle, assignments: cleanAssignments } : r));
+      recordAuditChange({ action: 'Edited', moduleName: 'Rosters', targetLabel: `${finalServiceTitle} (${rosterDraft.date})`, details: `Updated roster slots (${cleanAssignments.length} slot(s), Location: ${finalLocation})` });
     } else {
       setRosters([{ id: 'r-' + Date.now(), date: rosterDraft.date, location: finalLocation, serviceType: finalServiceTitle, assignments: cleanAssignments }, ...rosters]);
+      recordAuditChange({ action: 'Created', moduleName: 'Rosters', targetLabel: `${finalServiceTitle} (${rosterDraft.date})`, details: `Created roster (${cleanAssignments.length} slot(s), Location: ${finalLocation})` });
     }
+    setSelectedRosterProgram(finalServiceTitle);
+    if (rosterDraft.date && rosterDraft.date.length >= 7) setSelectedRosterMonth(rosterDraft.date.slice(0, 7));
+    setSelectedRosterWeek(String(getWeekNumberInMonth(rosterDraft.date)));
     setShowRosterBuilder(false); setEditingRosterId(null);
   };
-  const handleDeleteRoster = (id) => setRosters(rosters.filter(r => r.id !== id));
-  const filteredRosters = useMemo(() => {
+
+  const handleDeleteRoster = (id) => {
+    if (!canEditModule('rosters')) return;
+    const target = rosters.find(r => r.id === id);
+    setRosters(rosters.filter(r => r.id !== id));
+    if (target) {
+      recordAuditChange({ action: 'Deleted', moduleName: 'Rosters', targetLabel: `${target.serviceType} (${target.date})`, details: `Deleted roster (${target.location || '—'})` });
+    }
+  };
+
+  const locationFilteredRosters = useMemo(() => {
     const locQ = rosterLocationFilter.trim().toLowerCase();
     const svcQ = rosterServiceFilter.trim().toLowerCase();
-    return rosters.filter(r => (!locQ || (r.location || '').toLowerCase().includes(locQ)) && (!svcQ || (r.serviceType || '').toLowerCase().includes(svcQ))).sort((a, b) => b.date.localeCompare(a.date));
+    return rosters
+      .filter(r => (!locQ || (r.location || '').toLowerCase().includes(locQ)) && (!svcQ || (r.serviceType || '').toLowerCase().includes(svcQ)))
+      .sort((a, b) => b.date.localeCompare(a.date));
   }, [rosters, rosterLocationFilter, rosterServiceFilter]);
+
+  const rosterPrograms = useMemo(() => {
+    const map = new Map();
+    locationFilteredRosters.forEach(r => {
+      const prog = (r.serviceType || 'Church Service').trim();
+      map.set(prog, (map.get(prog) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
+  }, [locationFilteredRosters]);
+
+  const activeRosterProgram = useMemo(() => {
+    if (selectedRosterProgram && rosterPrograms.some(p => p.name === selectedRosterProgram)) return selectedRosterProgram;
+    return rosterPrograms[0]?.name || '';
+  }, [selectedRosterProgram, rosterPrograms]);
+
+  const programRosters = useMemo(() => {
+    if (!activeRosterProgram) return [];
+    return locationFilteredRosters.filter(r => (r.serviceType || 'Church Service').trim() === activeRosterProgram);
+  }, [locationFilteredRosters, activeRosterProgram]);
+
+  const rosterMonthsForProgram = useMemo(() => {
+    const map = new Map();
+    programRosters.forEach(r => {
+      const mo = r.date && r.date.length >= 7 ? r.date.slice(0, 7) : 'Undated';
+      map.set(mo, (map.get(mo) || 0) + 1);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0])).map(([month, count]) => ({ month, count }));
+  }, [programRosters]);
+
+  const activeRosterMonth = useMemo(() => {
+    if (selectedRosterMonth && rosterMonthsForProgram.some(m => m.month === selectedRosterMonth)) return selectedRosterMonth;
+    return rosterMonthsForProgram[0]?.month || '';
+  }, [selectedRosterMonth, rosterMonthsForProgram]);
+
+  const monthRostersForProgram = useMemo(() => {
+    if (!activeRosterMonth) return programRosters;
+    return programRosters.filter(r => (r.date && r.date.length >= 7 ? r.date.slice(0, 7) : 'Undated') === activeRosterMonth);
+  }, [programRosters, activeRosterMonth]);
+
+  const rosterWeeksForMonth = useMemo(() => {
+    const map = new Map();
+    monthRostersForProgram.forEach(r => {
+      const wk = getWeekNumberInMonth(r.date);
+      map.set(wk, (map.get(wk) || 0) + 1);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]).map(([week, count]) => ({ week, count }));
+  }, [monthRostersForProgram]);
+
+  const filteredRosters = useMemo(() => {
+    if (selectedRosterWeek === 'ALL') return monthRostersForProgram;
+    const wkNum = Number(selectedRosterWeek);
+    return monthRostersForProgram.filter(r => getWeekNumberInMonth(r.date) === wkNum);
+  }, [monthRostersForProgram, selectedRosterWeek]);
 
   const exportDirectoryCsv = () => {
     const headers = ['Category', 'Title', 'Full Name', 'Phone', 'Home Address', 'Emergency Contact', 'Emergency Phone', 'Location', 'Units', 'Access Role'];
@@ -710,10 +1092,10 @@ export default function App() {
     { id: 'overview', label: 'Overview & Notice Board', icon: Bell, visible: true },
     { id: 'rosters', label: 'Ministering Rosters', icon: Calendar, visible: true },
     { id: 'plans', label: activePlanYear ? `${activePlanYear} Strategic Plan` : 'Strategic Plan', icon: BookOpen, visible: true },
-    { id: 'attendance', label: 'Attendance & Services', icon: ClipboardList, visible: canEnterData },
-    { id: 'newcomers', label: 'Newcomers & Follow-Up', icon: UserPlus, visible: canEnterData },
-    { id: 'analytics', label: 'Growth & Service Analytics', icon: BarChart3, visible: isFullAdmin },
-    { id: 'directory', label: 'Workers & Members Directory', icon: Users, visible: isFullAdmin }
+    { id: 'attendance', label: 'Attendance & Services', icon: ClipboardList, visible: canEnterAttendance },
+    { id: 'newcomers', label: 'Newcomers & Follow-Up', icon: UserPlus, visible: canEnterNewcomers },
+    { id: 'analytics', label: 'Growth & Service Analytics', icon: BarChart3, visible: hasOversightView },
+    { id: 'directory', label: 'Workers, Access & Audit', icon: Users, visible: hasOversightView }
   ].filter(t => t.visible);
 
   const workersCount = people.filter(p => p.category === 'Worker').length;
@@ -773,8 +1155,8 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-400/40">
                   <ShieldCheck className="w-4 h-4 text-emerald-300" />
-                  {accessLevel === 'head_pastor' && 'Head Pastor (Full Admin)'}
-                  {accessLevel === 'full_access' && 'Full Access Oversight'}
+                  {isHeadPastor && 'Head Pastor (Full Admin)'}
+                  {isFullAccessRole && (faPolicy.canEdit ? 'Full Access (Edit Enabled)' : 'Full Access (View + Execute)')}
                   {accessLevel === 'usher_entry' && 'Usher / Data Entry'}
                 </span>
                 <button
@@ -810,8 +1192,7 @@ export default function App() {
           </div>
         </nav>
       </header>
-
-      {showUnlockModal && (
+   {showUnlockModal && (
         <div className="fixed inset-0 bg-[#071329]/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#d9e1ef]">
             <div className="flex items-center justify-between mb-4">
@@ -839,8 +1220,9 @@ export default function App() {
               </div>
               <div className="bg-[#f8fafd] border border-[#dfe6f2] rounded-lg p-3.5 text-sm text-slate-600 space-y-1.5">
                 <p className="font-semibold text-[#0d2247]">Access Tiers:</p>
-                <p>• <strong>Head Pastor / Full Access:</strong> Full analytics, personal particulars, financial offerings, directory & archive controls.</p>
-                <p>• <strong>Usher / Data Entry:</strong> Attendance logging & newcomer follow-up (personal directory & offering totals remain hidden).</p>
+                <p>• <strong>Head Pastor (HP):</strong> Full control, FA permission toggles & change audit log.</p>
+                <p>• <strong>Full Access (FA):</strong> Full visibility + "Executed" toggle; edits when HP enables it.</p>
+                <p>• <strong>Usher / Data Entry:</strong> Attendance logging & newcomer follow-up.</p>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowUnlockModal(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
@@ -852,7 +1234,6 @@ export default function App() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* WELCOME BANNER (NO CITY LIST) */}
         <div className="bg-white border border-[#dce3f0] border-l-4 border-l-[#0d2247] rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             {currentYearData && currentYearData.theme ? (
@@ -871,7 +1252,9 @@ export default function App() {
             <p className="text-sm text-slate-500 mt-1">
               {accessLevel === 'public_member'
                 ? 'You are viewing the public portal (Notice Board, Ministering Rosters & Strategic Plan). Click "Special Entry" in the top bar for leadership or worker access.'
-                : `Signed in with ${accessLevel === 'head_pastor' ? 'Head Pastor Full Access' : accessLevel === 'full_access' ? 'Full Oversight Access' : 'Usher / Data Entry Access'}.`}
+                : isFullAccessRole && !faPolicy.canEdit
+                ? 'Full Access mode: You can view all sections and mark activities Executed/Not Executed. Editing is currently view-only unless enabled by Head Pastor.'
+                : `Signed in with ${roleLabel}.`}
             </p>
           </div>
 
@@ -880,7 +1263,7 @@ export default function App() {
               <div className="text-sm text-slate-500">Sunday Avg</div>
               <div className="text-xl font-extrabold text-emerald-700">{latestSundayAvg}</div>
             </div>
-            {isFullAdmin && (
+            {hasOversightView && (
               <div className="bg-[#fef9ea] border border-[#f2d488] rounded-xl px-4 py-2.5 text-center">
                 <div className="text-sm text-[#8a5d05]">Workers / Members</div>
                 <div className="text-xl font-extrabold text-[#0d2247]">{workersCount} / {membersCount}</div>
@@ -888,7 +1271,7 @@ export default function App() {
             )}
           </div>
         </div>
-{/* TAB 1: OVERVIEW & NOTICE BOARD */}
+     {/* TAB 1: OVERVIEW & NOTICE BOARD */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
@@ -911,7 +1294,7 @@ export default function App() {
                 {!currentYearData ? (
                   <div className="py-8 text-center border border-dashed border-[#cdd7e8] rounded-xl bg-[#f8fafd] space-y-3">
                     <p className="text-sm font-semibold text-[#0d2247]">No year has been created yet for the Notice Board & Strategic Plan.</p>
-                    {isFullAdmin ? (
+                    {canEditModule('plansAndNotices') ? (
                       <form onSubmit={handleCreateYear} className="inline-flex items-center gap-2">
                         <input type="text" placeholder="Type year..." value={newYearInput} onChange={(e) => setNewYearInput(e.target.value)} className="w-40 px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white" required />
                         <button type="submit" className="px-3.5 py-1.5 bg-[#0d2247] hover:bg-[#163466] text-[#fde047] text-sm font-bold rounded-lg">+ Create Year</button>
@@ -922,7 +1305,7 @@ export default function App() {
                   </div>
                 ) : (
                   <>
-                    {isFullAdmin && (
+                    {canEditModule('plansAndNotices') && (
                       <form onSubmit={handleAddNotice} className="bg-[#f8fafd] border border-[#dce3f0] rounded-xl p-4 mb-5 space-y-3">
                         <div className="text-sm font-bold text-[#0d2247]">Post New Announcement to {activePlanYear} Notice Board</div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -945,42 +1328,74 @@ export default function App() {
                       <p className="text-sm text-slate-500 py-6 text-center">No announcements posted for {activePlanYear} yet.</p>
                     ) : (
                       <div className="space-y-3">
-                        {currentYearData.noticeBoard.map(notice => (
-                          <div key={notice.id} className="border border-[#dce3f0] rounded-xl p-4 hover:border-[#b9c7df] transition bg-white">
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2.5 py-0.5 rounded text-xs font-bold uppercase ${notice.priority === 'Urgent' ? 'bg-red-100 text-red-700' : 'bg-[#e8effa] text-[#0d2247]'}`}>{notice.priority}</span>
-                                  <span className="text-sm text-slate-500">{notice.date}{notice.audience ? ` • ${notice.audience}` : ''}</span>
+                        {currentYearData.noticeBoard.map(notice => {
+                          const isEditingNotice = canEditModule('plansAndNotices') && editingNoticeId === notice.id && editNoticeDraft;
+                          if (isEditingNotice) {
+                            return (
+                              <div key={notice.id} className="border-2 border-[#eab308] bg-[#fef9ea] rounded-xl p-4 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-extrabold uppercase tracking-wider text-[#8a5d05]">Editing Announcement</span>
+                                  <button type="button" onClick={() => { setEditingNoticeId(null); setEditNoticeDraft(null); }} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
                                 </div>
-                                <h4 className="font-bold text-[#0d2247] text-base mt-1">{notice.title}</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                  <input type="text" value={editNoticeDraft.title} onChange={(e) => setEditNoticeDraft({ ...editNoticeDraft, title: e.target.value })} className="sm:col-span-2 px-3 py-2 text-sm font-bold border border-slate-300 rounded-lg bg-white" required />
+                                  <input type="date" value={editNoticeDraft.date} onChange={(e) => setEditNoticeDraft({ ...editNoticeDraft, date: e.target.value })} className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white" />
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                  <input type="text" placeholder="Audience..." value={editNoticeDraft.audience} onChange={(e) => setEditNoticeDraft({ ...editNoticeDraft, audience: e.target.value })} className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white" />
+                                  <select value={editNoticeDraft.priority} onChange={(e) => setEditNoticeDraft({ ...editNoticeDraft, priority: e.target.value })} className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white">
+                                    <option value="Normal">Normal Notice</option>
+                                    <option value="Urgent">Urgent / Priority</option>
+                                  </select>
+                                </div>
+                                <textarea rows={2} value={editNoticeDraft.body} onChange={(e) => setEditNoticeDraft({ ...editNoticeDraft, body: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white" />
+                                <div className="flex justify-end gap-2">
+                                  <button type="button" onClick={() => { setEditingNoticeId(null); setEditNoticeDraft(null); }} className="px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-200/60 rounded-lg">Cancel</button>
+                                  <button type="button" onClick={handleSaveEditedNotice} className="inline-flex items-center gap-1 px-4 py-1.5 bg-[#0d2247] hover:bg-[#163466] text-[#fde047] text-sm font-bold rounded-lg"><Check className="w-4 h-4" />Save Notice</button>
+                                </div>
                               </div>
-                              {isFullAdmin && (
-                                <button onClick={() => handleDeleteNotice(notice.id)} className="text-slate-400 hover:text-red-600 p-1" title="Delete notice"><Trash2 className="w-4 h-4" /></button>
-                              )}
+                            );
+                          }
+
+                          return (
+                            <div key={notice.id} className="border border-[#dce3f0] rounded-xl p-4 hover:border-[#b9c7df] transition bg-white">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`px-2.5 py-0.5 rounded text-xs font-bold uppercase ${notice.priority === 'Urgent' ? 'bg-red-100 text-red-700' : 'bg-[#e8effa] text-[#0d2247]'}`}>{notice.priority}</span>
+                                    <span className="text-sm text-slate-500">{notice.date}{notice.audience ? ` • ${notice.audience}` : ''}</span>
+                                  </div>
+                                  <h4 className="font-bold text-[#0d2247] text-base mt-1">{notice.title}</h4>
+                                </div>
+                                {canEditModule('plansAndNotices') && (
+                                  <div className="flex items-center gap-1">
+                                    <button type="button" onClick={() => handleStartEditNotice(notice)} className="text-slate-400 hover:text-[#0d2247] p-1" title="Edit notice"><Edit3 className="w-4 h-4" /></button>
+                                    <button type="button" onClick={() => handleDeleteNotice(notice.id)} className="text-slate-400 hover:text-red-600 p-1" title="Delete notice"><Trash2 className="w-4 h-4" /></button>
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-sm text-slate-600 mt-2 leading-relaxed">{notice.body}</p>
                             </div>
-                            <p className="text-sm text-slate-600 mt-2 leading-relaxed">{notice.body}</p>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </>
                 )}
               </div>
             </div>
-
-            <div className="space-y-4">
+<div className="space-y-4">
               <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-bold text-[#0d2247] text-base flex items-center gap-2"><MapPin className="w-4 h-4 text-[#b47b08]" />Weekly Service Days</h3>
-                  {isFullAdmin && !isEditingServices && (
+                  {canEditModule('plansAndNotices') && !isEditingServices && (
                     <button onClick={startEditingServices} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6] transition">
                       <Edit3 className="w-3.5 h-3.5" />Edit Days
                     </button>
                   )}
                 </div>
 
-                {isFullAdmin && isEditingServices ? (
+                {canEditModule('plansAndNotices') && isEditingServices ? (
                   <form onSubmit={handleSaveServices} className="space-y-3">
                     {servicesDraft.map((svc, idx) => (
                       <div key={svc.id} className="p-3 rounded-xl bg-[#fef9ea] border border-[#f2d488] space-y-2">
@@ -1038,17 +1453,16 @@ export default function App() {
             </div>
           </div>
         )}
-
-        {/* TAB 2: FLEXIBLE MINISTERING ROSTERS */}
+   {/* TAB 2: CLUSTERED MINISTERING ROSTERS (PROGRAM -> MONTH -> WEEK) */}
         {activeTab === 'rosters' && (
           <div className="space-y-5">
             <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs space-y-4">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
-                  <h3 className="font-bold text-[#0d2247] text-lg">Flexible Ministering & Duty Rosters</h3>
-                  <p className="text-sm text-slate-500">Type any Service / Program name and Location to create or filter schedules</p>
+                  <h3 className="font-bold text-[#0d2247] text-lg">Ministering & Duty Rosters (By Program, Month & Week)</h3>
+                  <p className="text-sm text-slate-500">Click a program cluster (e.g., Sunday Worship Service), pick a month, and open a specific week</p>
                 </div>
-                {isFullAdmin && (
+                {canEditModule('rosters') && (
                   <button onClick={openNewRosterBuilder} className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0d2247] hover:bg-[#163466] text-[#fde047] text-sm font-bold rounded-xl shadow-xs transition">
                     <Plus className="w-4 h-4" />Create New Roster
                   </button>
@@ -1057,22 +1471,22 @@ export default function App() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-3 border-t border-slate-100">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Filter by Service Type</label>
-                  <input type="text" list="dlbc-service-types-list" autoComplete="off" placeholder="Type service name to filter..." value={rosterServiceFilter} onChange={(e) => setRosterServiceFilter(e.target.value)} className="w-full px-3 py-2 text-sm font-semibold border border-slate-300 rounded-xl bg-[#f8fafd]" />
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Search Program Name</label>
+                  <input type="text" list="dlbc-service-types-list" autoComplete="off" placeholder="Type program name..." value={rosterServiceFilter} onChange={(e) => setRosterServiceFilter(e.target.value)} className="w-full px-3 py-2 text-sm font-semibold border border-slate-300 rounded-xl bg-[#f8fafd]" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Filter by Location</label>
-                  <input type="text" list="dlbc-locations-list" autoComplete="off" placeholder="Type location to filter..." value={rosterLocationFilter} onChange={(e) => setRosterLocationFilter(e.target.value)} className="w-full px-3 py-2 text-sm font-semibold border border-slate-300 rounded-xl bg-[#f8fafd]" />
+                  <input type="text" list="dlbc-locations-list" autoComplete="off" placeholder="Type location..." value={rosterLocationFilter} onChange={(e) => setRosterLocationFilter(e.target.value)} className="w-full px-3 py-2 text-sm font-semibold border border-slate-300 rounded-xl bg-[#f8fafd]" />
                 </div>
                 <div className="flex items-end">
                   <div className="text-sm text-slate-500 bg-[#f8fafd] border border-[#dce3f0] rounded-xl px-3.5 py-2 w-full">
-                    Showing <strong className="text-[#0d2247]">{filteredRosters.length}</strong> roster(s)
+                    Showing <strong className="text-[#0d2247]">{filteredRosters.length}</strong> in selected view ({locationFilteredRosters.length} total)
                   </div>
                 </div>
               </div>
             </div>
 
-            {isFullAdmin && showRosterBuilder && (
+            {canEditModule('rosters') && showRosterBuilder && (
               <div className="bg-white border-2 border-[#eab308] rounded-2xl p-5 shadow-md space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                   <div>
@@ -1126,55 +1540,122 @@ export default function App() {
               </div>
             )}
 
-            {filteredRosters.length === 0 ? (
+            {locationFilteredRosters.length === 0 ? (
               <div className="bg-white border border-dashed border-[#cdd7e8] rounded-2xl p-10 text-center">
                 <Calendar className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                 <h4 className="font-bold text-[#0d2247] text-base">No rosters match this service or location filter</h4>
                 <p className="text-sm text-slate-500 mt-1">Clear the filters above or create a new roster.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredRosters.map(r => (
-                  <div key={r.id} className="border border-[#dce3f0] rounded-2xl p-4 bg-white shadow-xs flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-start justify-between gap-2 mb-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {r.location && <span className="px-2.5 py-0.5 rounded bg-[#fef6df] text-[#8a5d05] border border-[#f2d488] text-xs font-bold">{r.location}</span>}
-                            <span className="px-2.5 py-0.5 rounded bg-[#eef2f9] text-[#0d2247] text-xs font-semibold">{r.date}</span>
+              <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="space-y-2">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">1. Click a Program / Service Cluster</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {rosterPrograms.map(prog => {
+                      const active = prog.name === activeRosterProgram;
+                      return (
+                        <button
+                          key={prog.name}
+                          type="button"
+                          onClick={() => { setSelectedRosterProgram(prog.name); setSelectedRosterMonth(''); setSelectedRosterWeek('ALL'); }}
+                          className={`px-4 py-2 rounded-xl text-sm font-bold border transition flex items-center gap-2 ${active ? 'bg-[#0d2247] text-[#fde047] border-[#0d2247] shadow-xs' : 'bg-[#f8fafd] hover:bg-[#eef3fa] text-[#0d2247] border-[#dce3f0]'}`}
+                        >
+                          <span>{prog.name}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-md ${active ? 'bg-[#1a386e] text-[#fde047]' : 'bg-white text-slate-600 border border-[#dce3f0]'}`}>{prog.count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-3 border-t border-slate-100">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">2. Click a Month for {activeRosterProgram}</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {rosterMonthsForProgram.map(m => {
+                      const active = m.month === activeRosterMonth;
+                      return (
+                        <button
+                          key={m.month}
+                          type="button"
+                          onClick={() => { setSelectedRosterMonth(m.month); setSelectedRosterWeek('ALL'); }}
+                          className={`px-3.5 py-1.5 rounded-xl text-sm font-bold border transition flex items-center gap-1.5 ${active ? 'bg-[#9a6b06] text-white border-[#9a6b06]' : 'bg-[#fef9ea] hover:bg-[#fef0c7] text-[#8a5d05] border-[#f2d488]'}`}
+                        >
+                          <span>{m.month}</span>
+                          <span className="text-xs opacity-85">({m.count})</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-3 border-t border-slate-100">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-slate-500">3. Drill Down by Week ({activeRosterMonth})</div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRosterWeek('ALL')}
+                      className={`px-3.5 py-1.5 rounded-xl text-sm font-bold border transition ${selectedRosterWeek === 'ALL' ? 'bg-[#0d2247] text-white border-[#0d2247]' : 'bg-[#f4f6fa] text-[#0d2247] border-[#dce3f0]'}`}
+                    >
+                      All Weeks ({monthRostersForProgram.length})
+                    </button>
+                    {rosterWeeksForMonth.map(w => {
+                      const active = selectedRosterWeek === String(w.week);
+                      return (
+                        <button
+                          key={w.week}
+                          type="button"
+                          onClick={() => setSelectedRosterWeek(String(w.week))}
+                          className={`px-3.5 py-1.5 rounded-xl text-sm font-bold border transition ${active ? 'bg-[#0d2247] text-[#fde047] border-[#0d2247]' : 'bg-[#f8fafd] hover:bg-[#eef3fa] text-[#0d2247] border-[#dce3f0]'}`}
+                        >
+                          Week {w.week} <span className="text-xs opacity-75">({w.count})</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+                  {filteredRosters.map(r => (
+                    <div key={r.id} className="border border-[#dce3f0] rounded-2xl p-4 bg-[#f9fbfe] shadow-2xs flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {r.location && <span className="px-2.5 py-0.5 rounded bg-[#fef6df] text-[#8a5d05] border border-[#f2d488] text-xs font-bold">{r.location}</span>}
+                              <span className="px-2.5 py-0.5 rounded bg-[#eef2f9] text-[#0d2247] text-xs font-semibold">{r.date} • Week {getWeekNumberInMonth(r.date)}</span>
+                            </div>
+                            <h4 className="font-bold text-[#0d2247] text-base mt-1.5">{r.serviceType}</h4>
                           </div>
-                          <h4 className="font-bold text-[#0d2247] text-base mt-1.5">{r.serviceType}</h4>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => {
-                              const txt = `*DLBC Poland Roster (${r.date}${r.location ? ` - ${r.location}` : ''})*\n*${r.serviceType}*\n` + r.assignments.map(a => `• ${a.time} ${a.slot}: *${a.worker}*`).join('\n');
-                              navigator.clipboard?.writeText(txt);
-                              alert('Roster copied for WhatsApp!');
-                            }}
-                            className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg"
-                          >
-                            Copy WhatsApp
-                          </button>
-                          {isFullAdmin && (
-                            <>
-                              <button onClick={() => openEditRosterBuilder(r)} className="p-1.5 bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] rounded-lg"><Edit3 className="w-4 h-4" /></button>
-                              <button onClick={() => handleDeleteRoster(r.id)} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="divide-y divide-slate-100 bg-[#f8fafd] rounded-xl border border-[#dce3f0] px-3.5">
-                        {r.assignments.map((a, i) => (
-                          <div key={i} className="py-2 flex items-center justify-between text-sm">
-                            <div><span className="font-mono text-slate-400 mr-2">{a.time}</span><span className="text-slate-700">{a.slot}</span></div>
-                            <span className="font-bold text-[#0d2247]">{a.worker}</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => {
+                                const txt = `*DLBC Poland Roster (${r.date}${r.location ? ` - ${r.location}` : ''})*\n*${r.serviceType}*\n` + r.assignments.map(a => `• ${a.time} ${a.slot}: *${a.worker}*`).join('\n');
+                                navigator.clipboard?.writeText(txt);
+                                alert('Roster copied for WhatsApp!');
+                              }}
+                              className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg"
+                            >
+                              Copy WhatsApp
+                            </button>
+                            {canEditModule('rosters') && (
+                              <>
+                                <button onClick={() => openEditRosterBuilder(r)} className="p-1.5 bg-white hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6] rounded-lg"><Edit3 className="w-4 h-4" /></button>
+                                <button onClick={() => handleDeleteRoster(r.id)} className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                              </>
+                            )}
                           </div>
-                        ))}
+                        </div>
+                        <div className="divide-y divide-slate-100 bg-white rounded-xl border border-[#dce3f0] px-3.5">
+                          {r.assignments.map((a, i) => (
+                            <div key={i} className="py-2 flex items-center justify-between text-sm">
+                              <div><span className="font-mono text-slate-400 mr-2">{a.time}</span><span className="text-slate-700">{a.slot}</span></div>
+                              <span className="font-bold text-[#0d2247]">{a.worker}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1185,13 +1666,13 @@ export default function App() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-[#e3e9f3] pb-4">
               <div>
                 <h3 className="font-bold text-[#0d2247] text-lg">Annual Strategic Plan & Vision Tracker</h3>
-                <p className="text-sm text-slate-500">Click a quarter tab to view its driving team, activities, dates, targets, descriptions, and execution ticks</p>
+                <p className="text-sm text-slate-500">Click a quarter tab to view activities, dates, targets, descriptions, and execution status</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {availableYears.map(yr => (
                   <button key={yr} onClick={() => { setSelectedPlanYear(yr); setEditingActivityId(null); setEditActivityDraft(null); }} className={`px-3.5 py-1.5 rounded-lg text-sm font-bold transition ${activePlanYear === yr ? 'bg-[#0d2247] text-[#fde047] shadow-xs' : 'bg-[#f4f6fa] text-[#0d2247] hover:bg-[#e6ecf6] border border-[#dce3f0]'}`}>{yr}</button>
                 ))}
-                {isFullAdmin && (
+                {canEditModule('plansAndNotices') && (
                   <form onSubmit={handleCreateYear} className="flex items-center gap-1.5 ml-1">
                     <input type="text" placeholder="Type year..." value={newYearInput} onChange={(e) => setNewYearInput(e.target.value)} className="w-32 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg" required />
                     <button type="submit" className="px-3 py-1.5 bg-[#eab308] hover:bg-[#facc15] text-[#0d2247] text-sm font-bold rounded-lg">+ Year</button>
@@ -1204,20 +1685,20 @@ export default function App() {
               <div className="py-12 text-center border border-dashed border-[#cdd7e8] rounded-2xl bg-[#f8fafd] space-y-3">
                 <BookOpen className="w-8 h-8 text-[#0d2247]/50 mx-auto" />
                 <h4 className="font-bold text-[#0d2247] text-base">No Strategic Plan Year Created Yet</h4>
-                <p className="text-sm text-slate-500 max-w-md mx-auto">{isFullAdmin ? 'Type a year above and click "+ Year" to begin planning.' : 'No annual strategic plan has been published yet.'}</p>
+                <p className="text-sm text-slate-500 max-w-md mx-auto">{canEditModule('plansAndNotices') ? 'Type a year above and click "+ Year" to begin planning.' : 'No annual strategic plan has been published yet.'}</p>
               </div>
             ) : (
               <div className="space-y-5">
                 <div className="bg-gradient-to-br from-[#fef9ea] to-[#fffdf7] border border-[#ebc978] rounded-2xl p-5 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-extrabold uppercase tracking-wider text-[#8a5d05]">{activePlanYear} Theme, Scripture & Vision Note</span>
-                    {isFullAdmin && (
+                    {canEditModule('plansAndNotices') && (
                       <button type="button" onClick={() => handleDeleteYear(activePlanYear)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition">
                         <Trash2 className="w-3.5 h-3.5" />Delete {activePlanYear}
                       </button>
                     )}
                   </div>
-                  {isFullAdmin ? (
+                  {canEditModule('plansAndNotices') ? (
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
                         <div className="md:col-span-8">
@@ -1260,7 +1741,7 @@ export default function App() {
                       );
                     })}
                   </div>
-                  {isFullAdmin && (
+                  {canEditModule('plansAndNotices') && (
                     <form onSubmit={handleAddQuarterTab} className="flex items-center gap-1.5">
                       <input type="text" placeholder="Custom quarter tab..." value={customQuarterInput} onChange={(e) => setCustomQuarterInput(e.target.value)} className="w-36 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg bg-[#f8fafd]" />
                       <button type="submit" className="px-3 py-1.5 bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6] text-sm font-bold rounded-lg">+ Quarter</button>
@@ -1272,7 +1753,7 @@ export default function App() {
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-white border border-[#dce3f0] rounded-2xl p-4">
                     <div className="lg:col-span-8 space-y-1.5">
                       <label className="block text-xs font-extrabold uppercase tracking-wider text-[#0d2247]">{activeQuarterKey} Driving Team (Multiple Names / Leads)</label>
-                      {isFullAdmin ? (
+                      {canEditModule('plansAndNotices') ? (
                         <textarea rows={3} value={activeQuarterData.team || ''} onChange={(e) => handleUpdateQuarterTeam(e.target.value)} placeholder={`Type team members or lead driving ${activeQuarterKey}...`} className="w-full px-3.5 py-2 text-sm font-semibold text-[#0d2247] border border-[#cbd5e6] rounded-xl bg-[#fcfdfe] leading-relaxed" />
                       ) : (
                         <div className="p-3 rounded-xl bg-[#f8fafd] border border-[#e3e9f3] text-sm font-semibold text-[#0d2247] whitespace-pre-line min-h-[72px]">{activeQuarterData.team || 'Unassigned'}</div>
@@ -1287,8 +1768,7 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-
-                  {isFullAdmin && (
+                  {canEditModule('plansAndNotices') && (
                     <form onSubmit={handleAddQuarterActivity} className="bg-white border border-[#dce3f0] rounded-2xl p-4 space-y-3">
                       <div className="text-sm font-bold text-[#0d2247]">Add New Activity to {activeQuarterKey}</div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
@@ -1328,7 +1808,7 @@ export default function App() {
                         {quarterActivities.map((item, idx) => {
                           const isExec = item.executionStatus === 'executed';
                           const isNotExec = item.executionStatus === 'not_executed';
-                          const isEditingThis = isFullAdmin && editingActivityId === item.id && editActivityDraft;
+                          const isEditingThis = canEditModule('plansAndNotices') && editingActivityId === item.id && editActivityDraft;
                           return (
                             <div key={item.id} className="p-4 hover:bg-[#f8fafd] transition">
                               {isEditingThis ? (
@@ -1366,14 +1846,14 @@ export default function App() {
 
                                   <div className="flex flex-wrap sm:flex-nowrap lg:flex-col items-start sm:items-center lg:items-end justify-between gap-2 shrink-0">
                                     <div className="inline-flex items-center gap-2">
-                                      <button type="button" disabled={!isFullAdmin} onClick={() => handleSetActivityStatus(item.id, 'executed')} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${isExec ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-emerald-50'}`}>
+                                      <button type="button" disabled={!canExecutePlanStatus} onClick={() => handleSetActivityStatus(item.id, 'executed')} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${isExec ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-emerald-50'}`}>
                                         <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${isExec ? 'bg-white text-emerald-700 border-white' : 'border-slate-400'}`}>{isExec && <Check className="w-2.5 h-2.5 stroke-[3]" />}</span>Executed
                                       </button>
-                                      <button type="button" disabled={!isFullAdmin} onClick={() => handleSetActivityStatus(item.id, 'not_executed')} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${isNotExec ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-rose-50'}`}>
+                                      <button type="button" disabled={!canExecutePlanStatus} onClick={() => handleSetActivityStatus(item.id, 'not_executed')} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition ${isNotExec ? 'bg-rose-600 text-white border-rose-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-rose-50'}`}>
                                         <span className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${isNotExec ? 'bg-white text-rose-700 border-white' : 'border-slate-400'}`}>{isNotExec && <Check className="w-2.5 h-2.5 stroke-[3]" />}</span>Not Executed
                                       </button>
                                     </div>
-                                    {isFullAdmin && (
+                                    {canEditModule('plansAndNotices') && (
                                       <div className="inline-flex items-center gap-1.5">
                                         <button type="button" onClick={() => handleStartEditActivity(item)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6]"><Edit3 className="w-3.5 h-3.5" />Edit</button>
                                         <button type="button" onClick={() => handleDeleteQuarterActivity(item.id)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200"><Trash2 className="w-3.5 h-3.5" />Delete</button>
@@ -1393,9 +1873,8 @@ export default function App() {
             )}
           </div>
         )}
-
-        {/* TAB 4: ATTENDANCE ENTRY & EXPLORER */}
-        {activeTab === 'attendance' && canEnterData && (
+  {/* TAB 4: ATTENDANCE ENTRY & EXPLORER */}
+        {activeTab === 'attendance' && canEnterAttendance && (
           <div className="space-y-6">
             <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
               <h3 className="font-bold text-[#0d2247] text-lg mb-1">Log Service Attendance</h3>
@@ -1463,7 +1942,7 @@ export default function App() {
                         {(Number(attForm.adultMale) || 0) + (Number(attForm.adultFemale) || 0) + (Number(attForm.youthBoys) || 0) + (Number(attForm.youthGirls) || 0) + (Number(attForm.childrenBoys) || 0) + (Number(attForm.childrenGirls) || 0) + (Number(attForm.visitorMale) || 0) + (Number(attForm.visitorFemale) || 0)}
                       </span>
                     </div>
-                    {isFullAdmin && (
+                    {canViewOfferings && (
                       <div className="w-48">
                         <label className="block text-xs font-semibold text-[#0d2247] mb-1">Offering (PLN) <span className="text-slate-400 font-normal">(Optional)</span></label>
                         <input type="number" min="0" step="0.01" placeholder="0.00" value={attForm.offeringPln} onChange={(e) => setAttForm({ ...attForm, offeringPln: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
@@ -1507,13 +1986,36 @@ export default function App() {
                         <tr className="border-b border-[#dce3f0] text-slate-500 bg-[#f8fafd]">
                           <th className="py-2.5 px-3">Location</th><th className="py-2.5 px-3">Service Type</th><th className="py-2.5 px-3">Adults (M/F)</th>
                           <th className="py-2.5 px-3">Youth (B/G)</th><th className="py-2.5 px-3">Children (B/G)</th><th className="py-2.5 px-3">Visitors (M/F)</th>
-                          <th className="py-2.5 px-3 font-bold text-[#0d2247]">Total</th>{isFullAdmin && <th className="py-2.5 px-3">Offering</th>}
-                          <th className="py-2.5 px-3">Recorded By</th>{isFullAdmin && <th className="py-2.5 px-3 text-right">Action</th>}
+                          <th className="py-2.5 px-3 font-bold text-[#0d2247]">Total</th>{canViewOfferings && <th className="py-2.5 px-3">Offering</th>}
+                          <th className="py-2.5 px-3">Recorded By</th>{canEditModule('attendance') && <th className="py-2.5 px-3 text-right">Actions</th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
                         {dayRecords.map(rec => {
                           const c = getRecordCounts(rec);
+                          const isEditing = canEditModule('attendance') && editingAttId === rec.id && editAttDraft;
+                          if (isEditing) {
+                            const draftTotal = (Number(editAttDraft.adultMale) || 0) + (Number(editAttDraft.adultFemale) || 0) + (Number(editAttDraft.youthBoys) || 0) + (Number(editAttDraft.youthGirls) || 0) + (Number(editAttDraft.childrenBoys) || 0) + (Number(editAttDraft.childrenGirls) || 0) + (Number(editAttDraft.visitorMale) || 0) + (Number(editAttDraft.visitorFemale) || 0);
+                            return (
+                              <tr key={rec.id} className="bg-[#fef9ea]">
+                                <td className="py-2.5 px-2"><input type="text" list="dlbc-locations-list" autoComplete="off" placeholder="Location..." value={editAttDraft.location} onChange={(e) => setEditAttDraft({ ...editAttDraft, location: e.target.value })} className="w-28 px-2 py-1 text-xs font-semibold border border-slate-300 rounded bg-white" /></td>
+                                <td className="py-2.5 px-2"><input type="text" list="dlbc-service-types-list" autoComplete="off" value={editAttDraft.serviceType} onChange={(e) => setEditAttDraft({ ...editAttDraft, serviceType: e.target.value })} className="w-36 px-2 py-1 text-xs border border-slate-300 rounded bg-white" /></td>
+                                <td className="py-2.5 px-2 whitespace-nowrap"><div className="flex items-center gap-1"><input type="number" min="0" value={editAttDraft.adultMale} onChange={(e) => setEditAttDraft({ ...editAttDraft, adultMale: e.target.value })} className="w-12 px-1.5 py-1 text-xs border border-slate-300 rounded bg-white" /><span className="text-xs text-slate-400">/</span><input type="number" min="0" value={editAttDraft.adultFemale} onChange={(e) => setEditAttDraft({ ...editAttDraft, adultFemale: e.target.value })} className="w-12 px-1.5 py-1 text-xs border border-slate-300 rounded bg-white" /></div></td>
+                                <td className="py-2.5 px-2 whitespace-nowrap"><div className="flex items-center gap-1"><input type="number" min="0" value={editAttDraft.youthBoys} onChange={(e) => setEditAttDraft({ ...editAttDraft, youthBoys: e.target.value })} className="w-12 px-1.5 py-1 text-xs border border-slate-300 rounded bg-white" /><span className="text-xs text-slate-400">/</span><input type="number" min="0" value={editAttDraft.youthGirls} onChange={(e) => setEditAttDraft({ ...editAttDraft, youthGirls: e.target.value })} className="w-12 px-1.5 py-1 text-xs border border-slate-300 rounded bg-white" /></div></td>
+                                <td className="py-2.5 px-2 whitespace-nowrap"><div className="flex items-center gap-1"><input type="number" min="0" value={editAttDraft.childrenBoys} onChange={(e) => setEditAttDraft({ ...editAttDraft, childrenBoys: e.target.value })} className="w-12 px-1.5 py-1 text-xs border border-slate-300 rounded bg-white" /><span className="text-xs text-slate-400">/</span><input type="number" min="0" value={editAttDraft.childrenGirls} onChange={(e) => setEditAttDraft({ ...editAttDraft, childrenGirls: e.target.value })} className="w-12 px-1.5 py-1 text-xs border border-slate-300 rounded bg-white" /></div></td>
+                                <td className="py-2.5 px-2 whitespace-nowrap"><div className="flex items-center gap-1"><input type="number" min="0" value={editAttDraft.visitorMale} onChange={(e) => setEditAttDraft({ ...editAttDraft, visitorMale: e.target.value })} className="w-12 px-1.5 py-1 text-xs border border-slate-300 rounded bg-white" /><span className="text-xs text-slate-400">/</span><input type="number" min="0" value={editAttDraft.visitorFemale} onChange={(e) => setEditAttDraft({ ...editAttDraft, visitorFemale: e.target.value })} className="w-12 px-1.5 py-1 text-xs border border-slate-300 rounded bg-white" /></div></td>
+                                <td className="py-2.5 px-3 font-extrabold text-[#0d2247]">{draftTotal}</td>
+                                {canViewOfferings && <td className="py-2.5 px-2"><input type="number" min="0" step="0.01" value={editAttDraft.offeringPln} onChange={(e) => setEditAttDraft({ ...editAttDraft, offeringPln: e.target.value })} className="w-20 px-1.5 py-1 text-xs font-mono border border-slate-300 rounded bg-white" /></td>}
+                                <td className="py-2.5 px-2"><input type="text" value={editAttDraft.recordedBy} onChange={(e) => setEditAttDraft({ ...editAttDraft, recordedBy: e.target.value })} className="w-24 px-2 py-1 text-xs border border-slate-300 rounded bg-white" /></td>
+                                {canEditModule('attendance') && (
+                                  <td className="py-2.5 px-3 text-right whitespace-nowrap space-x-1">
+                                    <button type="button" onClick={handleSaveEditedAttendance} className="px-2.5 py-1 rounded bg-emerald-600 text-white text-xs font-semibold">Save</button>
+                                    <button type="button" onClick={() => { setEditingAttId(null); setEditAttDraft(null); }} className="px-2.5 py-1 rounded bg-slate-200 text-slate-700 text-xs font-semibold">Cancel</button>
+                                  </td>
+                                )}
+                              </tr>
+                            );
+                          }
                           return (
                             <tr key={rec.id} className="hover:bg-[#f8fafd]">
                               <td className="py-2.5 px-3 font-semibold text-[#0d2247]">{rec.location || '—'}</td>
@@ -1523,9 +2025,14 @@ export default function App() {
                               <td className="py-2.5 px-3 whitespace-nowrap">{c.children} ({c.childrenBoys}B/{c.childrenGirls}G)</td>
                               <td className="py-2.5 px-3 whitespace-nowrap">{c.visitors} ({c.visitorMale}M/{c.visitorFemale}F)</td>
                               <td className="py-2.5 px-3 font-extrabold text-[#0d2247]">{c.total}</td>
-                              {isFullAdmin && <td className="py-2.5 px-3 font-mono">{rec.offeringPln ? `${rec.offeringPln} PLN` : '—'}</td>}
+                              {canViewOfferings && <td className="py-2.5 px-3 font-mono">{rec.offeringPln ? `${rec.offeringPln} PLN` : '—'}</td>}
                               <td className="py-2.5 px-3">{rec.recordedBy}</td>
-                              {isFullAdmin && <td className="py-2.5 px-3 text-right"><button onClick={() => handleDeleteAttendance(rec.id)} className="px-2.5 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold">Delete</button></td>}
+                              {canEditModule('attendance') && (
+                                <td className="py-2.5 px-3 text-right whitespace-nowrap space-x-1.5">
+                                  <button type="button" onClick={() => handleStartEditAttendance(rec)} className="px-2.5 py-1 rounded bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6] text-xs font-semibold">Edit</button>
+                                  <button type="button" onClick={() => handleDeleteAttendance(rec.id)} className="px-2.5 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold">Delete</button>
+                                </td>
+                              )}
                             </tr>
                           );
                         })}
@@ -1574,8 +2081,9 @@ export default function App() {
             </div>
           </div>
         )}
-    {/* TAB 5: NEWCOMERS */}
-        {activeTab === 'newcomers' && canEnterData && (
+
+        {/* TAB 5: NEWCOMERS */}
+        {activeTab === 'newcomers' && canEnterNewcomers && (
           <div className="space-y-6">
             <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
               <h3 className="font-bold text-[#0d2247] text-lg mb-1">Register First-Timer / Newcomer</h3>
@@ -1609,7 +2117,8 @@ export default function App() {
                     <thead>
                       <tr className="border-b border-[#dce3f0] text-slate-500">
                         <th className="py-2.5">Name</th><th className="py-2.5">Phone</th><th className="py-2.5">Location</th>
-                        <th className="py-2.5">Visit Date</th><th className="py-2.5">Assigned Worker</th><th className="py-2.5">Notes</th><th className="py-2.5 text-right">Archive / Delete</th>
+                        <th className="py-2.5">Visit Date</th><th className="py-2.5">Assigned Worker</th><th className="py-2.5">Notes</th>
+                        {canEditModule('newcomers') && <th className="py-2.5 text-right">Archive / Delete</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1621,12 +2130,14 @@ export default function App() {
                           <td className="py-2.5">{nc.visitDate}</td>
                           <td className="py-2.5 text-emerald-700 font-semibold">{nc.assignedFollowUp}</td>
                           <td className="py-2.5 text-slate-500 max-w-xs truncate">{nc.notes}</td>
-                          <td className="py-2.5 text-right space-x-2">
-                            <button onClick={() => toggleArchiveNewcomer(nc.id)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#fef9ea] hover:bg-[#fef0c7] text-[#8a5d05] border border-[#f2d488] text-xs font-semibold">
-                              {nc.archived ? <RotateCcw className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}{nc.archived ? 'Restore' : 'Archive'}
-                            </button>
-                            {isFullAdmin && <button onClick={() => deleteNewcomer(nc.id)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold"><Trash2 className="w-3.5 h-3.5" />Delete</button>}
-                          </td>
+                          {canEditModule('newcomers') && (
+                            <td className="py-2.5 text-right space-x-2">
+                              <button onClick={() => toggleArchiveNewcomer(nc.id)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#fef9ea] hover:bg-[#fef0c7] text-[#8a5d05] border border-[#f2d488] text-xs font-semibold">
+                                {nc.archived ? <RotateCcw className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}{nc.archived ? 'Restore' : 'Archive'}
+                              </button>
+                              <button onClick={() => deleteNewcomer(nc.id)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-semibold"><Trash2 className="w-3.5 h-3.5" />Delete</button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -1636,20 +2147,7 @@ export default function App() {
             </div>
           </div>
         )}
-
-        {/* TAB 6: GROWTH & SERVICE ANALYTICS */}
-        {activeTab === 'analytics' && isFullAdmin && (
-          <div className="space-y-6">
-            <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                <div>
-                  <h3 className="font-bold text-[#0d2247] text-lg flex items-center gap-2"><TrendingUp className="w-5 h-5 text-emerald-700" />Flexible Church Data & Growth Insights</h3>
-                  <p className="text-sm text-slate-500">Toggle series on Trend/Area to view Male, Female, Cohorts or Total; click a Month on Cohort Mix</p>
-                </div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"><ShieldCheck className="w-4 h-4" />Leadership Restricted View</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">1. Visualization Type</label>
                   <select value={analyticsChartType} onChange={(e) => setAnalyticsChartType(e.target.value)} className="w-full px-3 py-2 text-sm font-bold border border-[#dfc078] rounded-xl bg-[#fef9ea] text-[#0d2247]">
@@ -1677,7 +2175,7 @@ export default function App() {
                     <option value="visitors">Visitors</option>
                     <option value="visitorMale">Visitor Male</option>
                     <option value="visitorFemale">Visitor Female</option>
-                    <option value="offeringPln">Offering (PLN)</option>
+                    {canViewOfferings && <option value="offeringPln">Offering (PLN)</option>}
                   </select>
                 </div>
                 <div>
@@ -1904,62 +2402,121 @@ export default function App() {
               </div>
             )}
           </div>
-        )}    
-        {/* TAB 7: SEPARATE WORKERS & MEMBERS DIRECTORY + PARTICULARS */}
-        {activeTab === 'directory' && isFullAdmin && (
+        )}   
+{/* TAB 7: DIRECTORY, HP FA PERMISSIONS & HP ACTIVITY LOG */}
+        {activeTab === 'directory' && hasOversightView && (
           <div className="space-y-6">
-            <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h3 className="font-bold text-[#0d2247] text-lg">Add Worker or Member Particulars</h3>
-                  <p className="text-sm text-slate-500">Capture Full Name, Phone Number, Home Address, Emergency Contact, and Location</p>
+            {isHeadPastor && (
+              <div className="bg-white border-2 border-[#dfc078] rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <h3 className="font-bold text-[#0d2247] text-lg flex items-center gap-2">
+                      <Sliders className="w-5 h-5 text-[#9a6b06]" />
+                      Head Pastor Control: Full Access (FA) Permissions & Restrictions
+                    </h3>
+                    <p className="text-sm text-slate-500">
+                      FA always has full view access and can click <strong>Executed / Not Executed</strong>. Toggle whether FA can edit records and restrict specific areas when needed.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleFaEditPermission}
+                    className={`px-4 py-2 rounded-xl text-sm font-extrabold border transition shrink-0 ${
+                      faPolicy.canEdit
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600'
+                        : 'bg-[#fef9ea] hover:bg-[#fef0c7] text-[#8a5d05] border-[#f2d488]'
+                    }`}
+                  >
+                    {faPolicy.canEdit ? 'FA Edit Permission: ENABLED (Click to Restrict)' : 'FA Edit Permission: VIEW & EXECUTE ONLY (Click to Grant)'}
+                  </button>
                 </div>
-                <button onClick={exportDirectoryCsv} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6]">
-                  <Download className="w-4 h-4" />Export CSV
-                </button>
-              </div>
 
-              <form onSubmit={handleAddPerson} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-[#0d2247] mb-1">Classification</label>
-                  <select value={newPersonForm.category} onChange={(e) => setNewPersonForm({ ...newPersonForm, category: e.target.value })} className="w-full px-3 py-2 text-sm font-bold border border-[#dfc078] rounded-lg bg-[#fef9ea]">
-                    <option value="Worker">Worker</option>
-                    <option value="Member">Member</option>
-                  </select>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-3 border-t border-slate-100">
+                  {[
+                    { key: 'directory', label: 'Directory' },
+                    { key: 'offerings', label: 'Offerings' },
+                    { key: 'rosters', label: 'Rosters' },
+                    { key: 'plansAndNotices', label: 'Plan & Notices' },
+                    { key: 'attendance', label: 'Attendance' },
+                    { key: 'newcomers', label: 'Newcomers' }
+                  ].map(mod => {
+                    const restricted = Boolean(faPolicy.restrictedModules?.[mod.key]);
+                    return (
+                      <button
+                        key={mod.key}
+                        type="button"
+                        onClick={() => toggleFaModuleRestriction(mod.key, mod.label)}
+                        className={`p-2.5 rounded-xl border text-left transition ${
+                          restricted
+                            ? 'bg-rose-50 border-rose-200 text-rose-800'
+                            : 'bg-[#f8fafd] border-[#dce3f0] text-[#0d2247]'
+                        }`}
+                      >
+                        <div className="text-xs font-extrabold">{mod.label}</div>
+                        <div className="text-[11px] font-semibold mt-0.5">
+                          {restricted ? 'Restricted' : 'Allowed'}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-[#0d2247] mb-1">Full Name</label>
-                  <input type="text" placeholder="Type full name..." value={newPersonForm.fullName} onChange={(e) => setNewPersonForm({ ...newPersonForm, fullName: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
+              </div>
+            )}
+
+            {canEditModule('directory') && (
+              <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="font-bold text-[#0d2247] text-lg">Add Worker or Member Particulars</h3>
+                    <p className="text-sm text-slate-500">Capture Full Name, Phone Number, Home Address, Emergency Contact, and Location</p>
+                  </div>
+                  <button onClick={exportDirectoryCsv} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6]">
+                    <Download className="w-4 h-4" />Export CSV
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-[#0d2247] mb-1">Phone Number</label>
-                  <input type="text" placeholder="Type phone number..." value={newPersonForm.phone} onChange={(e) => setNewPersonForm({ ...newPersonForm, phone: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-[#0d2247] mb-1">Location (Type Yourself)</label>
-                  <input type="text" list="dlbc-locations-list" autoComplete="off" placeholder="Type location..." value={newPersonForm.location} onChange={(e) => setNewPersonForm({ ...newPersonForm, location: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-semibold text-[#0d2247] mb-1">Home Address</label>
-                  <input type="text" placeholder="Type home address..." value={newPersonForm.address} onChange={(e) => setNewPersonForm({ ...newPersonForm, address: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-[#0d2247] mb-1">Emergency Contact (Who to Contact)</label>
-                  <input type="text" placeholder="Type emergency contact name..." value={newPersonForm.emergencyName} onChange={(e) => setNewPersonForm({ ...newPersonForm, emergencyName: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-[#0d2247] mb-1">Emergency Contact Number</label>
-                  <input type="text" placeholder="Type emergency phone..." value={newPersonForm.emergencyPhone} onChange={(e) => setNewPersonForm({ ...newPersonForm, emergencyPhone: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
-                </div>
-                <div className="sm:col-span-3">
-                  <label className="block text-sm font-semibold text-[#0d2247] mb-1">Ministry Units / Fellowship Group (comma-separated)</label>
-                  <input type="text" placeholder="Type units or groups..." value={newPersonForm.unitsText} onChange={(e) => setNewPersonForm({ ...newPersonForm, unitsText: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
-                </div>
-                <div className="flex items-end">
-                  <button type="submit" className="w-full px-4 py-2 bg-[#0d2247] hover:bg-[#163466] text-white text-sm font-semibold rounded-lg">Save to {newPersonForm.category}s</button>
-                </div>
-              </form>
-            </div>
+
+                <form onSubmit={handleAddPerson} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-sm font-semibold text-[#0d2247] mb-1">Classification</label>
+                    <select value={newPersonForm.category} onChange={(e) => setNewPersonForm({ ...newPersonForm, category: e.target.value })} className="w-full px-3 py-2 text-sm font-bold border border-[#dfc078] rounded-lg bg-[#fef9ea]">
+                      <option value="Worker">Worker</option>
+                      <option value="Member">Member</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-[#0d2247] mb-1">Full Name</label>
+                    <input type="text" placeholder="Type full name..." value={newPersonForm.fullName} onChange={(e) => setNewPersonForm({ ...newPersonForm, fullName: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-[#0d2247] mb-1">Phone Number</label>
+                    <input type="text" placeholder="Type phone number..." value={newPersonForm.phone} onChange={(e) => setNewPersonForm({ ...newPersonForm, phone: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-[#0d2247] mb-1">Location (Type Yourself)</label>
+                    <input type="text" list="dlbc-locations-list" autoComplete="off" placeholder="Type location..." value={newPersonForm.location} onChange={(e) => setNewPersonForm({ ...newPersonForm, location: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-semibold text-[#0d2247] mb-1">Home Address</label>
+                    <input type="text" placeholder="Type home address..." value={newPersonForm.address} onChange={(e) => setNewPersonForm({ ...newPersonForm, address: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-[#0d2247] mb-1">Emergency Contact (Who to Contact)</label>
+                    <input type="text" placeholder="Type emergency contact name..." value={newPersonForm.emergencyName} onChange={(e) => setNewPersonForm({ ...newPersonForm, emergencyName: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-[#0d2247] mb-1">Emergency Contact Number</label>
+                    <input type="text" placeholder="Type emergency phone..." value={newPersonForm.emergencyPhone} onChange={(e) => setNewPersonForm({ ...newPersonForm, emergencyPhone: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" required />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <label className="block text-sm font-semibold text-[#0d2247] mb-1">Ministry Units / Fellowship Group (comma-separated)</label>
+                    <input type="text" placeholder="Type units or groups..." value={newPersonForm.unitsText} onChange={(e) => setNewPersonForm({ ...newPersonForm, unitsText: e.target.value })} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+                  </div>
+                  <div className="flex items-end">
+                    <button type="submit" className="w-full px-4 py-2 bg-[#0d2247] hover:bg-[#163466] text-white text-sm font-semibold rounded-lg">Save to {newPersonForm.category}s</button>
+                  </div>
+                </form>
+              </div>
+            )}
 
             <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4 pb-3 border-b border-[#e3e9f3]">
@@ -1968,6 +2525,9 @@ export default function App() {
                   <button onClick={() => setDirectorySubTab('Member')} className={`px-4 py-2 rounded-xl text-sm font-extrabold transition ${directorySubTab === 'Member' ? 'bg-[#0d2247] text-[#fde047] shadow-xs' : 'bg-[#f4f6fa] text-[#0d2247] hover:bg-[#e6ecf6]'}`}>Members Directory ({membersCount})</button>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={exportDirectoryCsv} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6]">
+                    <Download className="w-4 h-4" />CSV
+                  </button>
                   <div className="relative">
                     <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" />
                     <input type="text" placeholder="Search name, phone, address..." value={dirSearch} onChange={(e) => setDirSearch(e.target.value)} className="pl-8 pr-3 py-1.5 text-sm border border-slate-300 rounded-lg w-52" />
@@ -1981,12 +2541,13 @@ export default function App() {
                   <thead>
                     <tr className="border-b border-[#dce3f0] text-slate-500">
                       <th className="py-2.5">Full Name</th><th className="py-2.5">Phone Number</th><th className="py-2.5">Home Address</th>
-                      <th className="py-2.5">Emergency Contact (Who to Contact)</th><th className="py-2.5">Location</th><th className="py-2.5">Classification</th><th className="py-2.5 text-right">Actions</th>
+                      <th className="py-2.5">Emergency Contact (Who to Contact)</th><th className="py-2.5">Location</th><th className="py-2.5">Classification</th>
+                      {canEditModule('directory') && <th className="py-2.5 text-right">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredDirectory.map(person => {
-                      const isEditing = editingPersonId === person.id;
+                      const isEditing = canEditModule('directory') && editingPersonId === person.id;
                       return (
                         <tr key={person.id} className="hover:bg-[#f8fafd] align-top">
                           <td className="py-3 pr-2">
@@ -2016,21 +2577,30 @@ export default function App() {
                             {isEditing ? <input type="text" list="dlbc-locations-list" autoComplete="off" value={editPersonDraft.location} onChange={(e) => setEditPersonDraft({ ...editPersonDraft, location: e.target.value })} className="px-2 py-1 border border-slate-300 rounded w-28" /> : (person.location || '—')}
                           </td>
                           <td className="py-3 pr-2">
-                            <select value={person.category} onChange={(e) => handleToggleCategory(person.id, e.target.value)} className={`px-2.5 py-1 rounded text-xs font-bold border ${person.category === 'Worker' ? 'bg-[#fef9ea] text-[#8a5d05] border-[#f2d488]' : 'bg-[#eef2f9] text-[#0d2247] border-[#cbd5e6]'}`}>
-                              <option value="Worker">Worker</option>
-                              <option value="Member">Member</option>
-                            </select>
-                          </td>
-                          <td className="py-3 text-right whitespace-nowrap space-x-1.5">
-                            {isEditing ? (
-                              <>
-                                <button onClick={saveEditedPerson} className="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-semibold">Save</button>
-                                <button onClick={() => setEditingPersonId(null)} className="px-2.5 py-1 bg-slate-200 text-slate-700 rounded text-xs font-semibold">Cancel</button>
-                              </>
+                            {canEditModule('directory') ? (
+                              <select value={person.category} onChange={(e) => handleToggleCategory(person.id, e.target.value)} className={`px-2.5 py-1 rounded text-xs font-bold border ${person.category === 'Worker' ? 'bg-[#fef9ea] text-[#8a5d05] border-[#f2d488]' : 'bg-[#eef2f9] text-[#0d2247] border-[#cbd5e6]'}`}>
+                                <option value="Worker">Worker</option>
+                                <option value="Member">Member</option>
+                              </select>
                             ) : (
-                              <button onClick={() => { setEditingPersonId(person.id); setEditPersonDraft({ ...person }); }} className="px-2.5 py-1 bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] rounded text-xs font-semibold">Edit</button>
+                              <span className={`px-2.5 py-1 rounded text-xs font-bold border inline-block ${person.category === 'Worker' ? 'bg-[#fef9ea] text-[#8a5d05] border-[#f2d488]' : 'bg-[#eef2f9] text-[#0d2247] border-[#cbd5e6]'}`}>{person.category}</span>
                             )}
                           </td>
+                          {canEditModule('directory') && (
+                            <td className="py-3 text-right whitespace-nowrap space-x-1.5">
+                              {isEditing ? (
+                                <>
+                                  <button type="button" onClick={saveEditedPerson} className="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-semibold">Save</button>
+                                  <button type="button" onClick={() => setEditingPersonId(null)} className="px-2.5 py-1 bg-slate-200 text-slate-700 rounded text-xs font-semibold">Cancel</button>
+                                </>
+                              ) : (
+                                <>
+                                  <button type="button" onClick={() => { setEditingPersonId(person.id); setEditPersonDraft({ ...person }); }} className="px-2.5 py-1 bg-[#f4f6fa] hover:bg-[#e6ecf6] text-[#0d2247] border border-[#cbd5e6] rounded text-xs font-semibold">Edit</button>
+                                  <button type="button" onClick={() => handleDeletePerson(person)} className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded text-xs font-semibold">Delete</button>
+                                </>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -2038,6 +2608,95 @@ export default function App() {
                 </table>
               </div>
             </div>
+
+            {isHeadPastor && (
+              <div className="bg-white border border-[#dce3f0] rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[#e3e9f3]">
+                  <div>
+                    <h3 className="font-bold text-[#0d2247] text-lg flex items-center gap-2">
+                      <History className="w-5 h-5 text-[#0d2247]" />
+                      Head Pastor Change Activity Log ({activityLog.length})
+                    </h3>
+                    <p className="text-sm text-slate-500">Shows who made changes, when, what changed, and on which record</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select value={logActionFilter} onChange={(e) => setLogActionFilter(e.target.value)} className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-[#f8fafd]">
+                      <option value="ALL">All Actions</option>
+                      <option value="Created">Created</option>
+                      <option value="Edited">Edited</option>
+                      <option value="Deleted">Deleted</option>
+                      <option value="Marked Executed">Marked Executed</option>
+                      <option value="Marked Not Executed">Marked Not Executed</option>
+                      <option value="Permission Changed">Permission Changed</option>
+                    </select>
+                    <select value={logActorFilter} onChange={(e) => setLogActorFilter(e.target.value)} className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-[#f8fafd]">
+                      <option value="ALL">All Roles</option>
+                      <option value="head_pastor">Head Pastor (HP)</option>
+                      <option value="full_access">Full Access (FA)</option>
+                      <option value="usher_entry">Usher / Data Entry</option>
+                    </select>
+                    {activityLog.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm('Clear the HP activity audit log?')) setActivityLog([]);
+                        }}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200"
+                      >
+                        Clear Log
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {(() => {
+                  const visibleLogs = activityLog.filter(entry => {
+                    const actionOk = logActionFilter === 'ALL' || entry.action === logActionFilter;
+                    const actorOk = logActorFilter === 'ALL' || entry.actorRole === logActorFilter;
+                    return actionOk && actorOk;
+                  });
+
+                  if (visibleLogs.length === 0) {
+                    return <p className="text-sm text-slate-500 py-6 text-center">No recorded changes match the current filter.</p>;
+                  }
+
+                  return (
+                    <div className="overflow-x-auto border border-[#dce3f0] rounded-xl">
+                      <table className="w-full text-left border-collapse text-sm">
+                        <thead>
+                          <tr className="border-b border-[#dce3f0] text-slate-500 bg-[#f8fafd]">
+                            <th className="py-2.5 px-3">When</th>
+                            <th className="py-2.5 px-3">Who</th>
+                            <th className="py-2.5 px-3">Action</th>
+                            <th className="py-2.5 px-3">Area & Target</th>
+                            <th className="py-2.5 px-3">What Changed</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {visibleLogs.map(entry => (
+                            <tr key={entry.id} className="hover:bg-[#f8fafd] align-top">
+                              <td className="py-2.5 px-3 text-xs font-mono text-slate-500 whitespace-nowrap">{entry.timestamp}</td>
+                              <td className="py-2.5 px-3 whitespace-nowrap">
+                                <div className="font-bold text-[#0d2247]">{entry.actorName}</div>
+                                <div className="text-xs text-slate-500">{entry.actorRoleLabel}</div>
+                              </td>
+                              <td className="py-2.5 px-3 whitespace-nowrap">
+                                <span className="px-2 py-0.5 rounded bg-[#eef2f9] text-[#0d2247] text-xs font-bold">{entry.action}</span>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <div className="font-bold text-[#0d2247]">{entry.targetLabel}</div>
+                                <div className="text-xs text-slate-500">{entry.moduleName}</div>
+                              </td>
+                              <td className="py-2.5 px-3 text-slate-700">{entry.details}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         )}
       </main>
